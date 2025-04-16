@@ -19,6 +19,9 @@ class LogicGate:
                 return LogicGate(op, [s1, s2], assign_to, {"p1": p1, "p2": p2, "p3": False})
         assert False, f"Unsupported assignment: {assign_str}"
 
+    def to_assignment(self) -> str:
+        raise NotImplementedError("to_assignment is not implemented")
+
     def to_json(self) -> dict:
         return {
             "gate_type": self.gate_type,
@@ -64,6 +67,21 @@ class LogicNetwork:
                 ntk.gates[gate.output] = gate
         return ntk
     
+    def to_verilog(self) -> str:
+        verilog_str = "module top(\n"
+        verilog_str += ", ".join(self.inputs + self.outputs) + "\n"
+        verilog_str += ");\n"
+        verilog_str += "  input " + ", ".join(self.inputs) + ";\n"
+        verilog_str += "  output " + ", ".join(self.outputs) + ";\n"
+        verilog_str += "  wire " + ", ".join([k for k in self.gates.keys() if k not in self.inputs + self.outputs]) + ";\n"
+        for gate in self.gates.values():
+            verilog_str += gate.to_assignment() + "\n"
+        verilog_str += "endmodule\n"
+        return verilog_str
+    
+    @property
+    def n_ands(self) -> int:
+        return sum(gate.is_and for gate in self.gates.values())
     
 if __name__ == "__main__":
     import os
