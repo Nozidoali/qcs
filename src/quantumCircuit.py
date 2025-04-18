@@ -39,7 +39,7 @@ def toffoli_gate_with_ancilla(ctrl1: int, ctrl2: int, target: int) -> list:
         s_gate(ctrl1),
     ]
 
-class Circuit:
+class QuantumCircuit:
     def __init__(self):
         self.n_qubits: int = 0
         self.gates: list = []
@@ -51,20 +51,23 @@ class Circuit:
     def add_toffoli(
         self, c1: int, c2: int, target: int, p1: bool = False, p2: bool = False, clean: bool = False,
     ) -> None:
-        if p1: self.gates.append(x_gate(c1))
-        if p2: self.gates.append(x_gate(c2))
+        if p1: self.add_x(c1)
+        if p2: self.add_x(c2)
         if clean: self.gates.extend(toffoli_gate_with_ancilla(c1, c2, target))
         else: self.gates.append(toffoli_gate(c1, c2, target))
-        if p1: self.gates.append(x_gate(c1))
-        if p2: self.gates.append(x_gate(c2))
+        if p1: self.add_x(c1)
+        if p2: self.add_x(c2)
 
     def add_cnot(self, ctrl: int, target: int, p: bool = False) -> None:
-        if p: self.gates.append(x_gate(ctrl))
+        if p: self.add_x(ctrl)
         self.gates.append(cnot_gate(ctrl, target))
-        if p: self.gates.append(x_gate(ctrl))
+        if p: self.add_x(ctrl)
 
     def add_x(self, target: int) -> None:
         self.gates.append(x_gate(target))
+        
+    def to_json(self) -> dict:
+        return self.gates
 
     def to_qasm(self) -> str:
         qasm_str: str = "OPENQASM 2.0;\n"
@@ -89,3 +92,5 @@ class Circuit:
                 raise NotImplementedError(f"Unsupported gate: {gate['name']}")
         return qasm_str
 
+    def num_t(self) -> int:
+        return sum(1 for gate in self.gates if gate["name"] in ["T", "Tdg"])

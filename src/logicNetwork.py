@@ -1,5 +1,5 @@
 class LogicGate:
-    def __init__(self, gate_type: str, inputs: list[str], output: str, data):
+    def __init__(self, gate_type: str, inputs: list[str], output: str, data = {}):
         self.gate_type = gate_type
         self.inputs = inputs
         self.output = output
@@ -17,7 +17,8 @@ class LogicGate:
                     # De Morgan's law
                     return LogicGate("&", [s1, s2], assign_to, {"p1": not p1, "p2": not p2, "p3": True})
                 return LogicGate(op, [s1, s2], assign_to, {"p1": p1, "p2": p2, "p3": False})
-        assert False, f"Unsupported assignment: {assign_str}"
+        p, s = '~' in assign_from, assign_from.replace("~", "")
+        return LogicGate("=", [s], assign_to)
 
     def to_assignment(self) -> str:
         raise NotImplementedError("to_assignment is not implemented")
