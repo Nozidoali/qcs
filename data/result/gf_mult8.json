@@ -2,5 +2,5 @@
     "name": "gf_mult8",
     "n_ands": 64,
     "n_t": 256,
-    "n_qubits": 165
+    "n_qubits": 45
 }

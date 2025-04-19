@@ -7,10 +7,11 @@ OUTPUT_DIR = os.path.join(CURR_DIR, "../data/output")
 RESULT_DIR = os.path.join(CURR_DIR, "../data/result")
 
 parser = argparse.ArgumentParser(description="Quantum Circuit Extractor")
-
+parser.add_argument("--benchmark", type=str, default=None, help="Benchmark name to extract")
 args = parser.parse_args()
+benchmark = args.benchmark
 
-ALL_INPUTS = [f for f in os.listdir(INPUT_DIR) if f.endswith(".v")]
+ALL_INPUTS = [f for f in os.listdir(INPUT_DIR) if f.endswith(".v") and (not benchmark or benchmark in f)]
 
 BMARKS = [(
     f.replace(".v", ""),

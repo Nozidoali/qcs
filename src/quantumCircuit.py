@@ -57,6 +57,15 @@ class QuantumCircuit:
         else: self.gates.append(toffoli_gate(c1, c2, target))
         if p1: self.add_x(c1)
         if p2: self.add_x(c2)
+        
+    def add_mcx(
+        self, cs: list[int], target: int, ps: list[bool] = [], clean: bool = False,
+    ) -> None:
+        assert len(cs) <= 2, f"MCX only supports 1 or 2 control qubits, got {len(cs)}"
+        if len(cs) == 1:
+            self.add_cnot(cs[0], target, ps[0])
+        elif len(cs) == 2:
+            self.add_toffoli(cs[0], cs[1], target, ps[0], ps[1], clean)
 
     def add_cnot(self, ctrl: int, target: int, p: bool = False) -> None:
         if p: self.add_x(ctrl)

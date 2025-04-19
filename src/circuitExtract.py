@@ -1,15 +1,16 @@
 from logicNetwork import LogicNetwork, LogicGate
 from quantumCircuit import QuantumCircuit
-from dataclasses import dataclass
 
 AND_GATE_T_COST: int = 4
 
 class Structure:
-    def __init__(self, leaves: list[str], root: str, Tcost: int, exposed_signals: list[str] = []):
+    def __init__(self, leaves: list[str], root: str, Tcost: int, 
+                exposed_signals: list[str] = [], product_terms: list[str] = []):
         self.leaves = leaves
         self.root = root
         self.Tcost = Tcost
-        self.exposed_signals = []
+        self.exposed_signals = exposed_signals
+        self.product_terms = product_terms
 
 
 def cut_enumeration(network: LogicNetwork, **kwargs) -> dict[str, list[Structure]]:
@@ -25,7 +26,7 @@ def cut_enumeration(network: LogicNetwork, **kwargs) -> dict[str, list[Structure
     for node, gate in network.gates.items():
         _leaves: set[str] = set(gate.inputs[:])
         if gate.is_and: # AND gate cannot be used in XOR block
-            node_to_structures[node] = Structure(list[_leaves], node, AND_GATE_T_COST)
+            node_to_structures[node] = Structure(list[_leaves], node, AND_GATE_T_COST, [], inputs_of(node))
             continue
         exposed_signals: set[str] = set({node})
         while True:
@@ -56,13 +57,14 @@ def cut_enumeration(network: LogicNetwork, **kwargs) -> dict[str, list[Structure
             list({x for _l in _leaves for x in leaf_to_product[_l]}), 
             node,
             sum(AND_GATE_T_COST * len(leaf_to_product[_l]) for _l in _leaves),
-            list(exposed_signals)
+            list(exposed_signals), 
+            [list(leaf_to_product[_l]) for _l in _leaves]
         )
     return node_to_structures
 
 
 def xor_block_extraction(network: LogicNetwork, **kwargs) -> QuantumCircuit:
-    node_to_structures = cut_enumeration(network, **kwargs)
+    node_to_structures = cut_enumeration(network, max_inputs=2, **kwargs)
     fanins_of = lambda x: node_to_structures[x].leaves
     
     circuit = QuantumCircuit()
@@ -75,11 +77,17 @@ def xor_block_extraction(network: LogicNetwork, **kwargs) -> QuantumCircuit:
         for leaf in fanins_of(node):
             _mapping_rec(leaf)
         print(f"Mapping {node} with fanins {fanins_of(node)}")
+        qubits[node] = circuit.request_qubit()
+        for _p in node_to_structures[node].product_terms:
+            circuit.add_mcx(
+                # TODO: fix the phase
+                [qubits[x] for x in _p], qubits[node], [False] * len(_p), True
+            )
     
     for po in network.outputs:
         _mapping_rec(po)
-    
-    exit(0)
+
+    return circuit
 
 
 def extract(network: LogicNetwork) -> QuantumCircuit:
