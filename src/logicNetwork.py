@@ -35,6 +35,13 @@ class LogicGate:
     def is_and(self) -> bool:
         return self.gate_type == "&"
 
+    @property
+    def is_xor(self) -> bool:
+        return self.gate_type == "^"
+
+    @property
+    def is_pi(self) -> bool:
+        return len(self.inputs) == 0
 
 def _get_list(lst_str: str, s: str = None) -> list[str]:
     _str = lst_str.replace(s, "").strip()
@@ -42,9 +49,12 @@ def _get_list(lst_str: str, s: str = None) -> list[str]:
 
 class LogicNetwork:
     def __init__(self):
-        self.inputs = []
-        self.outputs = []
-        self.gates = {}
+        self.inputs:  list[str] = []
+        self.outputs: list[str] = []
+        self.gates: dict[str, LogicGate] = {}
+        
+        # private
+        self._node_fanouts: dict[str, set[str]] = {}
     
     @staticmethod
     def from_verilog(verilog_str: str) -> "LogicNetwork":
@@ -66,15 +76,16 @@ class LogicNetwork:
             if line.startswith("assign"):
                 gate = LogicGate.from_assignment(_get_list(line, "assign")[0])
                 ntk.gates[gate.output] = gate
+        ntk._compute_fanouts()
         return ntk
     
     def to_verilog(self) -> str:
         verilog_str = "module top(\n"
         verilog_str += ", ".join(self.inputs + self.outputs) + "\n"
         verilog_str += ");\n"
-        verilog_str += "  input " + ", ".join(self.inputs) + ";\n"
+        verilog_str += "  input "  + ", ".join(self.inputs) + ";\n"
         verilog_str += "  output " + ", ".join(self.outputs) + ";\n"
-        verilog_str += "  wire " + ", ".join([k for k in self.gates.keys() if k not in self.inputs + self.outputs]) + ";\n"
+        verilog_str += "  wire "   + ", ".join([k for k in self.gates.keys() if k not in self.inputs + self.outputs]) + ";\n"
         for gate in self.gates.values():
             verilog_str += gate.to_assignment() + "\n"
         verilog_str += "endmodule\n"
@@ -84,6 +95,26 @@ class LogicNetwork:
     def n_ands(self) -> int:
         return sum(gate.is_and for gate in self.gates.values())
     
+    def get_gate(self, node: str) -> LogicGate:
+        return self.gates.get(node, None)
+    
+    def is_pi(self, node: str) -> bool: #TODO: O(1)
+        return node in self.inputs
+    
+    def _compute_fanouts(self):
+        for node, gate in self.gates.items():
+            for input in gate.inputs:
+                if input not in self._node_fanouts:
+                    self._node_fanouts[input] = set()
+                self._node_fanouts[input].add(node)
+
+    def num_fanouts(self, node: str) -> int:
+        return len(self._node_fanouts.get(node, 0))
+
+    def fanouts(self, node: str) -> list[str]:
+        return list(self._node_fanouts.get(node, []))
+
+
 if __name__ == "__main__":
     import os
     curr_dir = os.path.dirname(os.path.abspath(__file__))
