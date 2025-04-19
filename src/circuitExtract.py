@@ -1,5 +1,6 @@
 from logicNetwork import LogicNetwork, LogicGate
 from quantumCircuit import QuantumCircuit
+from visualization import plot_circuit
 
 AND_GATE_T_COST: int = 4
 
@@ -81,12 +82,13 @@ def xor_block_extraction(network: LogicNetwork, **kwargs) -> QuantumCircuit:
         for _p in node_to_structures[node].product_terms:
             circuit.add_mcx(
                 # TODO: fix the phase
-                [qubits[x] for x in _p], qubits[node], [False] * len(_p), True
+                [qubits[x] for x in _p], qubits[node], [False] * len(_p), False
             )
     
     for po in network.outputs:
         _mapping_rec(po)
-
+        
+    plot_circuit(circuit)
     return circuit
 
 

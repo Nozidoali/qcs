@@ -1,0 +1,76 @@
+[
+    {
+        "name": "Tof",
+        "ctrl1": 5,
+        "ctrl2": 1,
+        "target": 6
+    },
+    {
+        "name": "Tof",
+        "ctrl1": 0,
+        "ctrl2": 3,
+        "target": 6
+    },
+    {
+        "name": "Tof",
+        "ctrl1": 2,
+        "ctrl2": 4,
+        "target": 6
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 0,
+        "target": 7
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 2,
+        "target": 7
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 1,
+        "target": 8
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 2,
+        "target": 8
+    },
+    {
+        "name": "Tof",
+        "ctrl1": 8,
+        "ctrl2": 5,
+        "target": 9
+    },
+    {
+        "name": "Tof",
+        "ctrl1": 4,
+        "ctrl2": 7,
+        "target": 9
+    },
+    {
+        "name": "Tof",
+        "ctrl1": 3,
+        "ctrl2": 1,
+        "target": 9
+    },
+    {
+        "name": "Tof",
+        "ctrl1": 3,
+        "ctrl2": 2,
+        "target": 10
+    },
+    {
+        "name": "Tof",
+        "ctrl1": 4,
+        "ctrl2": 1,
+        "target": 10
+    },
+    {
+        "name": "Tof",
+        "ctrl1": 7,
+        "ctrl2": 5,
+        "target": 10
+    }
+]
