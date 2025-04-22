@@ -149,3 +149,7 @@ class QuantumCircuit:
 
     def num_t(self) -> int:
         return sum(1 for gate in self.gates if gate["name"] in ["T", "Tdg"])
+    
+    @property
+    def num_gates(self) -> int:
+        return len(self.gates)

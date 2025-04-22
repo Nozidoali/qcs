@@ -18,17 +18,60 @@ def plot_network(network: LogicNetwork, **kwargs) -> None:
             graph.add_edge(input, node)
     graph.layout(prog="dot")
     graph.draw("network.png")
+    
+def plot_params(circuit: QuantumCircuit, **kwargs) -> dict:
+    params: dict = {}
+    params["W"] = len(circuit.gates)
+    params["H"] = circuit.n_qubits
+    params["dpi"] = kwargs.get("dpi", 100)
+    params["factor"] = kwargs.get("factor", 0.2)
+    params["figsize"] = (params["W"] * params["factor"], params["H"] * params["factor"])
+    return params
+    
+def schedule_gates(circuit: QuantumCircuit, **kwargs) -> list:
+    remove_overlap: bool = kwargs.get("remove_overlap", True)
+    
+    gate_loc: dict[int, int] = {}
+    level = [-1] * circuit.n_qubits
+    for i, gate in enumerate(circuit.gates):
+        deps: set = set()
+        if gate["name"] == "CNOT":
+            deps.add(gate["ctrl"])
+            deps.add(gate["target"])
+            if remove_overlap:
+                min_idx: int = min(gate["ctrl"], gate["target"])
+                max_idx: int = max(gate["ctrl"], gate["target"])
+                for j in range(min_idx, max_idx + 1):
+                    deps.add(j)
+        elif gate["name"] == "Tof":
+            deps.add(gate["ctrl1"])
+            deps.add(gate["ctrl2"])
+            deps.add(gate["target"])
+            if remove_overlap:
+                min_idx: int = min(gate["ctrl1"], gate["ctrl2"], gate["target"])
+                max_idx: int = max(gate["ctrl1"], gate["ctrl2"], gate["target"])
+                for j in range(min_idx, max_idx + 1):
+                    deps.add(j)
+        else:
+            deps.add(gate["target"])
+        max_level: int = 1 + max([level[d] for d in deps])
+        for dep in deps: level[dep] = max_level
+        gate_loc[i] = max_level
+    return gate_loc
 
-def plot_circuit(circuit: QuantumCircuit, **kwargs) -> None:
-    f = kwargs.get("factor", 0.2)
-    _, ax = plt.subplots(figsize=(len(circuit.gates) * f, circuit.n_qubits * f))
+def plot_circuit(circuit: QuantumCircuit, **kwargs) -> None:    
+    params: dict = plot_params(circuit, **kwargs)
+    
+    _, ax = plt.subplots(figsize=params["figsize"], dpi=params["dpi"])
     ax.axis("off")
 
     y = {q: q for q in range(circuit.n_qubits)}
     blend = mtrans.blended_transform_factory(ax.transAxes, ax.transData)
 
-    [ax.axhline(yy, ls=':', lw=1, c='gray') for yy in y.values()]
+    [ax.axhline(yy, ls='-', lw=1, c='gray') for yy in y.values()]
     [ax.text(0, yy, f"q{q}", ha='right', va='center', fontsize=10, transform=blend, clip_on=False) for q, yy in y.items()]
+    
+    x_of = schedule_gates(circuit)
 
     dot    = lambda x, yy, c='b'    : ax.plot([x], [yy], f'{c}o')
     square = lambda x, yy, c='b'    : ax.plot([x], [yy], f'{c}s', ms=10)
@@ -37,7 +80,8 @@ def plot_circuit(circuit: QuantumCircuit, **kwargs) -> None:
     text   = lambda x, y, s, c='b'  : ax.text(x, y, s, ha='center', va='center', fontsize=10, color=c)
     coord  = lambda g, k: y[g[k]] 
 
-    for t, g in enumerate(circuit.gates):
+    for i, g in enumerate(circuit.gates):
+        t = x_of[i]
         n = g["name"]
         if n == "CNOT":
             vline(t, coord(g, "ctrl"), coord(g, "target"))
