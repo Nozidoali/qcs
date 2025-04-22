@@ -26,6 +26,23 @@ def plot_params(circuit: QuantumCircuit, **kwargs) -> dict:
     params["dpi"] = kwargs.get("dpi", 100)
     params["factor"] = kwargs.get("factor", 0.2)
     params["figsize"] = (params["W"] * params["factor"], params["H"] * params["factor"])
+    
+    """
+        b  blue          m  magenta
+        g  green         y  yellow
+        r  red           k  black
+        c  cyan          w  white
+    """
+    gate_colors: dict = {
+        "CNOT": "b",
+        "Tof":  "g",
+        "T":    "r",
+        "Tdg":  "r",
+        "X":    "b",
+        "S":    "m",
+        "HAD":  "g"
+    }
+    params["gate_colors"] = gate_colors
     return params
     
 def schedule_gates(circuit: QuantumCircuit, **kwargs) -> list:
@@ -75,16 +92,15 @@ def plot_circuit(circuit: QuantumCircuit, **kwargs) -> None:
         elif n == "Tof":
             for c in ("ctrl1", "ctrl2"):
                 vline(t, coord(g, c), coord(g, "target"))
-                dot(t,   coord(g, c))
+                dot  (t, coord(g, c))
             xmark(t, coord(g, "target"))
         elif n in {"T", "Tdg"}:
-            square(t, coord(g, "target"), c='r')
+            square(t, coord(g, "target"), c=params["gate_colors"][n])
             l = {"T": "T", "Tdg": "T-"}[n]
             text(t, coord(g, "target"), l, c='white')
         elif n in {"X", "S", "HAD"}:
-            square(t, coord(g, "target"), c="y")
+            square(t, coord(g, "target"), c=params["gate_colors"][n])
             l = {"X": "X", "S": "S", "HAD": "H"}[n]
             text(t, coord(g, "target"), l, c='white')
 
-    plt.tight_layout(pad=0.5)
     plt.savefig("circuit.png")

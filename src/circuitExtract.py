@@ -1,7 +1,7 @@
 import json
 from rich.pretty import pprint
 
-from logicNetwork import LogicNetwork
+from logicNetwork import LogicNetwork, LogicGate
 from quantumCircuit import QuantumCircuit
 from visualization import plot_circuit, plot_network
 
@@ -78,11 +78,15 @@ def library_mapping(network: LogicNetwork, node_to_structures: dict[str, list[St
     return {k: v[0] for k, v in node_to_structures.items()}
 
 def post_process(circuit: QuantumCircuit, **kwargs) -> QuantumCircuit:
-    circuit_opt = QuantumCircuit.from_qasm(circuit.to_qasm(run_zx = True))
+    run_zx: bool = kwargs.get("run_zx", False)
+    verbose: bool = kwargs.get("verbose", False)
+
+    qasm_str: str = circuit.to_qasm(run_zx = run_zx)
+    if verbose: pprint(qasm_str.splitlines())
+    circuit_opt = QuantumCircuit.from_qasm(qasm_str)
     
     circuit_new = QuantumCircuit()
     circuit_new.request_qubits(circuit_opt.n_qubits)
-
     is_had: dict[int, bool] = {i: False for i in range(circuit_opt.n_qubits)}
     for i, gate in enumerate(circuit_opt.gates):
         if gate["name"] == "HAD":
@@ -147,15 +151,9 @@ def xor_block_grouping(network: LogicNetwork, **kwargs) -> QuantumCircuit:
             if c1 is c2: continue
             circuit.add_cnot(c1, c2, p1^p2)
         qubit_is_clean[qubit] = False
-
-    qasm_str: str = circuit.to_qasm(run_zx = True)
-    if verbose: pprint(qasm_str.splitlines())
-    
     circuit = post_process(circuit, **kwargs)
-    
     if plot_network_v: plot_network(network, show_name=verbose)
     if plot_circuit_v: plot_circuit(circuit)
-
     return circuit
 
 def xor_block_extraction(network: LogicNetwork, **kwargs) -> QuantumCircuit:
