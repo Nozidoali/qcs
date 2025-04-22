@@ -47,6 +47,9 @@ class QuantumCircuit:
             self.add_cnot(cs[0], target, ps[0])
         elif len(cs) == 2:
             self.add_toffoli(cs[0], cs[1], target, ps[0], ps[1], clean)
+            
+    def add_gate(self, gate: dict) -> None:
+        self.gates.append(gate.copy())
 
     def add_cnot(self, ctrl: int, target: int, p: bool = False) -> None:
         if p: self.add_x(ctrl)
@@ -77,6 +80,20 @@ class QuantumCircuit:
         
     def add_tdg(self, target: int) -> None:
         self.gates.append({"name": "Tdg", "target": target})
+        
+    @staticmethod
+    def deps_of(gate: dict) -> set[int]:
+        deps: set[int] = set()
+        if gate["name"] == "CNOT":
+            deps.add(gate["ctrl"])
+            deps.add(gate["target"])
+        elif gate["name"] == "Tof":
+            deps.add(gate["ctrl1"])
+            deps.add(gate["ctrl2"])
+            deps.add(gate["target"])
+        else:
+            deps.add(gate["target"])
+        return deps
         
     def to_json(self) -> dict:
         return self.gates

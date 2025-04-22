@@ -34,26 +34,11 @@ def schedule_gates(circuit: QuantumCircuit, **kwargs) -> list:
     gate_loc: dict[int, int] = {}
     level = [-1] * circuit.n_qubits
     for i, gate in enumerate(circuit.gates):
-        deps: set = set()
-        if gate["name"] == "CNOT":
-            deps.add(gate["ctrl"])
-            deps.add(gate["target"])
-            if remove_overlap:
-                min_idx: int = min(gate["ctrl"], gate["target"])
-                max_idx: int = max(gate["ctrl"], gate["target"])
-                for j in range(min_idx, max_idx + 1):
-                    deps.add(j)
-        elif gate["name"] == "Tof":
-            deps.add(gate["ctrl1"])
-            deps.add(gate["ctrl2"])
-            deps.add(gate["target"])
-            if remove_overlap:
-                min_idx: int = min(gate["ctrl1"], gate["ctrl2"], gate["target"])
-                max_idx: int = max(gate["ctrl1"], gate["ctrl2"], gate["target"])
-                for j in range(min_idx, max_idx + 1):
-                    deps.add(j)
-        else:
-            deps.add(gate["target"])
+        deps: set[int] = QuantumCircuit.deps_of(gate)
+        if remove_overlap:
+            min_idx, max_idx = min(deps), max(deps)
+            for j in range(min_idx, max_idx + 1):
+                deps.add(j)
         max_level: int = 1 + max([level[d] for d in deps])
         for dep in deps: level[dep] = max_level
         gate_loc[i] = max_level

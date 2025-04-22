@@ -77,6 +77,27 @@ def cut_enumeration(network: LogicNetwork, **kwargs) -> dict[str, list[Structure
 def library_mapping(network: LogicNetwork, node_to_structures: dict[str, list[Structure]], **kwargs) -> dict[str, Structure]:
     return {k: v[0] for k, v in node_to_structures.items()}
 
+def post_process(circuit: QuantumCircuit, **kwargs) -> QuantumCircuit:
+    circuit_opt = QuantumCircuit.from_qasm(circuit.to_qasm(run_zx = True))
+    
+    circuit_new = QuantumCircuit()
+    circuit_new.request_qubits(circuit_opt.n_qubits)
+
+    is_had: dict[int, bool] = {i: False for i in range(circuit_opt.n_qubits)}
+    for i, gate in enumerate(circuit_opt.gates):
+        if gate["name"] == "HAD":
+            is_had[gate["target"]] = not is_had[gate["target"]]
+        else:
+            for j in QuantumCircuit.deps_of(gate):
+                if is_had[j]:
+                    circuit_new.add_gate({"name": "HAD", "target": j})
+                    is_had[j] = False
+            circuit_new.add_gate(gate)
+    for j in range(circuit_opt.n_qubits):
+        if is_had[j]:
+            circuit_new.add_gate({"name": "HAD", "target": j})
+            is_had[j] = False
+    return circuit_new
 
 def xor_block_grouping(network: LogicNetwork, **kwargs) -> QuantumCircuit:
     plot_network_v: bool = kwargs.get("plot_network", True)
@@ -129,12 +150,13 @@ def xor_block_grouping(network: LogicNetwork, **kwargs) -> QuantumCircuit:
 
     qasm_str: str = circuit.to_qasm(run_zx = True)
     if verbose: pprint(qasm_str.splitlines())
-    circuit_opt = QuantumCircuit.from_qasm(circuit.to_qasm(run_zx = True))
+    
+    circuit = post_process(circuit, **kwargs)
     
     if plot_network_v: plot_network(network, show_name=verbose)
-    if plot_circuit_v: plot_circuit(circuit_opt)
+    if plot_circuit_v: plot_circuit(circuit)
 
-    return circuit_opt
+    return circuit
 
 def xor_block_extraction(network: LogicNetwork, **kwargs) -> QuantumCircuit:
     plot_network_v: bool = kwargs.get("plot_network", True)
