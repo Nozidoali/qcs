@@ -1,0 +1,259 @@
+[
+    {
+        "name": "HAD",
+        "target": 4
+    },
+    {
+        "name": "T",
+        "target": 4
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 0,
+        "target": 4
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 2,
+        "target": 4
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 4,
+        "target": 2
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 4,
+        "target": 0
+    },
+    {
+        "name": "Tdg",
+        "target": 0
+    },
+    {
+        "name": "Tdg",
+        "target": 2
+    },
+    {
+        "name": "T",
+        "target": 4
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 4,
+        "target": 0
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 4,
+        "target": 2
+    },
+    {
+        "name": "HAD",
+        "target": 4
+    },
+    {
+        "name": "S",
+        "target": 0
+    },
+    {
+        "name": "HAD",
+        "target": 5
+    },
+    {
+        "name": "T",
+        "target": 5
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 1,
+        "target": 5
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 3,
+        "target": 5
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 5,
+        "target": 3
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 5,
+        "target": 1
+    },
+    {
+        "name": "Tdg",
+        "target": 1
+    },
+    {
+        "name": "Tdg",
+        "target": 3
+    },
+    {
+        "name": "T",
+        "target": 5
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 5,
+        "target": 1
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 5,
+        "target": 3
+    },
+    {
+        "name": "HAD",
+        "target": 5
+    },
+    {
+        "name": "S",
+        "target": 1
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 4,
+        "target": 6
+    },
+    {
+        "name": "HAD",
+        "target": 7
+    },
+    {
+        "name": "T",
+        "target": 7
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 1,
+        "target": 7
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 2,
+        "target": 7
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 7,
+        "target": 2
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 7,
+        "target": 1
+    },
+    {
+        "name": "Tdg",
+        "target": 1
+    },
+    {
+        "name": "Tdg",
+        "target": 2
+    },
+    {
+        "name": "T",
+        "target": 7
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 7,
+        "target": 1
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 7,
+        "target": 2
+    },
+    {
+        "name": "HAD",
+        "target": 7
+    },
+    {
+        "name": "S",
+        "target": 1
+    },
+    {
+        "name": "HAD",
+        "target": 8
+    },
+    {
+        "name": "T",
+        "target": 8
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 0,
+        "target": 8
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 3,
+        "target": 8
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 8,
+        "target": 3
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 8,
+        "target": 0
+    },
+    {
+        "name": "Tdg",
+        "target": 0
+    },
+    {
+        "name": "Tdg",
+        "target": 3
+    },
+    {
+        "name": "T",
+        "target": 8
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 8,
+        "target": 0
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 8,
+        "target": 3
+    },
+    {
+        "name": "HAD",
+        "target": 8
+    },
+    {
+        "name": "S",
+        "target": 0
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 8,
+        "target": 9
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 7,
+        "target": 10
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 6,
+        "target": 11
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 10,
+        "target": 12
+    }
+]

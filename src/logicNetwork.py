@@ -40,6 +40,10 @@ class LogicGate:
         return self.gate_type == "^"
 
     @property
+    def is_buf(self) -> bool:
+        return self.gate_type == "="
+
+    @property
     def is_pi(self) -> bool:
         return len(self.inputs) == 0
 
@@ -118,5 +122,5 @@ class LogicNetwork:
 if __name__ == "__main__":
     import os
     curr_dir = os.path.dirname(os.path.abspath(__file__))
-    verilog_file = os.path.join(curr_dir, "../benchmarks/verilog/gf_mult/gf_mult_4.v")
+    verilog_file = os.path.join(curr_dir, "../data/input/gf_mult2.v")
     verilog = LogicNetwork.from_verilog(open(verilog_file).read())

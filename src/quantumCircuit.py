@@ -1,43 +1,7 @@
-def x_gate(target: int) -> dict:
-    return {"name": "X", "target": target}
+import re
 
-def h_gate(target: int) -> dict:
-    return {"name": "HAD", "target": target}
-
-def s_gate(target: int) -> dict:
-    return {"name": "S", "target": target}
-
-def cnot_gate(ctrl: int, target: int) -> dict:
-    return {"name": "CNOT", "ctrl": ctrl, "target": target}
-
-def x_gate(target: int) -> dict:
-    return {"name": "X", "target": target}
-
-def t_gate(target: int) -> dict:
-    return {"name": "T", "target": target}
-
-def t_dagger_gate(target: int) -> dict:
-    return {"name": "Tdg", "target": target}
-
-def toffoli_gate(ctrl1: int, ctrl2: int, target: int) -> dict:
-    return {"name": "Tof", "ctrl1": ctrl1, "ctrl2": ctrl2, "target": target}
-
-def toffoli_gate_with_ancilla(ctrl1: int, ctrl2: int, target: int) -> list:
-    return [
-        h_gate(target),
-        t_gate(target),
-        cnot_gate(ctrl1, target),
-        cnot_gate(ctrl2, target),
-        cnot_gate(target, ctrl2),
-        cnot_gate(target, ctrl1),
-        t_dagger_gate(ctrl1),
-        t_dagger_gate(ctrl2),
-        t_gate(target),
-        cnot_gate(target, ctrl1),
-        cnot_gate(target, ctrl2),
-        h_gate(target),
-        s_gate(ctrl1),
-    ]
+def is_unique(lst: list) -> bool:
+    return len(lst) == len(set(lst))
 
 class QuantumCircuit:
     def __init__(self):
@@ -48,13 +12,30 @@ class QuantumCircuit:
         self.n_qubits += 1
         return self.n_qubits - 1
 
+    def request_qubits(self, n: int) -> list[int]:
+        return [self.request_qubit() for _ in range(n)]
+
     def add_toffoli(
         self, c1: int, c2: int, target: int, p1: bool = False, p2: bool = False, clean: bool = False,
     ) -> None:
+        assert is_unique([c1, c2, target]), f"Control and target qubits must be unique, got {c1}, {c2}, {target}"
         if p1: self.add_x(c1)
         if p2: self.add_x(c2)
-        if clean: self.gates.extend(toffoli_gate_with_ancilla(c1, c2, target))
-        else: self.gates.append(toffoli_gate(c1, c2, target))
+        if clean:
+            self.add_h(target)
+            self.add_t(target)
+            self.add_cnot(c1, target)
+            self.add_cnot(c2, target)
+            self.add_cnot(target, c2)
+            self.add_cnot(target, c1)
+            self.add_tdg(c1)
+            self.add_tdg(c2)
+            self.add_t(target)
+            self.add_cnot(target, c1)
+            self.add_cnot(target, c2)
+            self.add_h(target)
+            self.add_s(c1)        
+        else: self.gates.append({"name": "Tof", "ctrl1": c1, "ctrl2": c2, "target": target})
         if p1: self.add_x(c1)
         if p2: self.add_x(c2)
         
@@ -69,16 +50,40 @@ class QuantumCircuit:
 
     def add_cnot(self, ctrl: int, target: int, p: bool = False) -> None:
         if p: self.add_x(ctrl)
-        self.gates.append(cnot_gate(ctrl, target))
+        self.gates.append({"name": "CNOT", "ctrl": ctrl, "target": target})
         if p: self.add_x(ctrl)
+        
+    def add_cz(self, ctrl: int, target: int) -> None:
+        self.add_h(target)
+        self.gates.append({"name": "CNOT", "ctrl": ctrl, "target": target})
+        self.add_h(target)
+    
+    def add_z(self, target: int) -> None:
+        self.add_h(target)
+        self.gates.append({"name": "X", "target": target})
+        self.add_h(target)
 
     def add_x(self, target: int) -> None:
-        self.gates.append(x_gate(target))
+        self.gates.append({"name": "X", "target": target})
+        
+    def add_h(self, target: int) -> None:
+        self.gates.append({"name": "HAD", "target": target})
+        
+    def add_s(self, target: int) -> None:
+        self.gates.append({"name": "S", "target": target})
+        
+    def add_t(self, target: int) -> None:
+        self.gates.append({"name": "T", "target": target})
+        
+    def add_tdg(self, target: int) -> None:
+        self.gates.append({"name": "Tdg", "target": target})
         
     def to_json(self) -> dict:
         return self.gates
 
-    def to_qasm(self) -> str:
+    def to_qasm(self, **kwargs) -> str:
+        run_zx: bool = kwargs.get("run_zx", False)
+        
         qasm_str: str = "OPENQASM 2.0;\n"
         qasm_str += f'include "qelib1.inc";\n'
         qasm_str += f"qreg q[{self.n_qubits}];\n"
@@ -99,7 +104,48 @@ class QuantumCircuit:
                 qasm_str += f"tdg q[{gate['target']}];\n"
             else:
                 raise NotImplementedError(f"Unsupported gate: {gate['name']}")
+        
+        if run_zx:
+            import pyzx as zx
+            circuit = zx.Circuit.from_qasm(qasm_str)
+            graph = circuit.to_graph()
+            zx.simplify.full_reduce(graph, quiet=True)
+            circuit = zx.extract_circuit(graph, up_to_perm=False)
+            circuit = circuit.to_basic_gates()
+            circuit = circuit.split_phase_gates()
+            return circuit.to_qasm()
         return qasm_str
+    
+    @staticmethod
+    def from_qasm(qasm: str) -> 'QuantumCircuit':
+        import pyzx as zx
+        qc = zx.Circuit.from_qasm(qasm)
+        
+        circuit = QuantumCircuit()
+        circuit.request_qubits(qc.qubits)
+        for gate in qc.gates:
+            if gate.name == "Tof":
+                circuit.add_toffoli(gate.ctrl1, gate.ctrl2, gate.target)
+            elif gate.name == "CNOT":
+                circuit.add_cnot(gate.control, gate.target)
+            elif gate.name == "CZ":
+                circuit.add_cz(gate.control, gate.target)
+            elif gate.name == "Z":
+                circuit.add_z(gate.target)
+            elif gate.name == "X":
+                circuit.add_x(gate.target)
+            elif gate.name == "HAD":
+                circuit.add_h(gate.target)
+            elif gate.name == "S":
+                circuit.add_s(gate.target)
+            elif gate.name == "T":
+                circuit.add_t(gate.target)
+            elif gate.name == "Tdg":
+                circuit.add_tdg(gate.target)
+            else:
+                raise NotImplementedError(f"Unsupported gate: {gate.name}")
+        
+        return circuit
 
     def num_t(self) -> int:
         return sum(1 for gate in self.gates if gate["name"] in ["T", "Tdg"])
