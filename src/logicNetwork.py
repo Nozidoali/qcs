@@ -21,7 +21,7 @@ class LogicGate:
         return LogicGate("=", [s], assign_to)
 
     def to_assignment(self) -> str:
-        raise NotImplementedError("to_assignment is not implemented")
+        raise NotImplementedError("verilog output is not implemented")
 
     def to_json(self) -> dict:
         return {

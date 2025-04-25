@@ -7,6 +7,12 @@ def _uniquify_cuts(cuts: list[list[str]]) -> list[list[str]]:
 def _merge_cuts(cuts1: list[list[str]], cuts2: list[list[str]]) -> list[list[str]]:
     return [list(set(x[:]) | set(y[:])) for x in cuts1 for y in cuts2]
 
+def _filter_cuts(cuts: list[list[str]], **kwargs) -> list[list[str]]:
+    _MAX_INT: int = 2**31 - 1
+    max_cut_size: int = kwargs.get("max_cut_size", _MAX_INT)
+    max_cut_count: int = kwargs.get("max_cut_count", _MAX_INT)
+    return [cut for cut in _uniquify_cuts(cuts) if len(cut) <= max_cut_size][:max_cut_count]
+
 def enumerate_cuts(network: LogicNetwork, **kwargs) -> dict[str, list]:
     node_to_cuts: dict[str, list[list[str]]] = {pi: [[pi]] for pi in network.inputs}
     for node, gate in network.gates.items():
@@ -17,7 +23,7 @@ def enumerate_cuts(network: LogicNetwork, **kwargs) -> dict[str, list]:
         elif n_inputs == 2:
             node_to_cuts[node].extend(_merge_cuts(node_to_cuts[gate.inputs[0]], node_to_cuts[gate.inputs[1]]))
         else: raise ValueError(f"Unsupported number of inputs: {n_inputs}")
-        node_to_cuts[node] = _uniquify_cuts(node_to_cuts[node])
+        node_to_cuts[node] = _filter_cuts(node_to_cuts[node], **kwargs)
     return node_to_cuts
 
 if __name__ == "__main__":
