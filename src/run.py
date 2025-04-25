@@ -10,5 +10,5 @@ if __name__ == "__main__":
         circuit = xor_block_grouping(ntk)
         # circuit = extract(ntk)
         open(circuit_out, "w").write(json.dumps(circuit.to_json(), indent=4))
-        datas = {"name": name, "n_ands": ntk.n_ands, "n_t": circuit.num_t(), "n_qubits": circuit.n_qubits}
+        datas = {"name": name, "n_ands": ntk.n_ands, "n_t": circuit.num_t, "n_qubits": circuit.n_qubits}
         open(json_out, "w").write(json.dumps(datas, indent=4))

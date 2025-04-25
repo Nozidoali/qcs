@@ -1,9 +1,9 @@
 class LogicGate:
     def __init__(self, gate_type: str, inputs: list[str], output: str, data = {}):
-        self.gate_type = gate_type
-        self.inputs = inputs
-        self.output = output
-        self.data = data
+        self.gate_type: str = gate_type
+        self.inputs: list[str] = inputs
+        self.output: list[str] = output
+        self.data: dict = data
 
     @staticmethod
     def from_assignment(assign_str: str, map_or: bool = True) -> "LogicGate":
@@ -113,7 +113,25 @@ class LogicNetwork:
 
     def fanouts(self, node: str) -> list[str]:
         return list(self._node_fanouts.get(node, []))
+    
+    def fanins(self, node: str) -> list[str]:
+        return [] if node in self.inputs else self.gates[node].inputs
+    
+    def create_pi(self, node: str) -> None:
+        self.inputs.append(node)
 
+    def create_po(self, node: str) -> None:
+        self.outputs.append(node)
+
+    def has(self, node: str) -> bool:
+        return node in self.gates or node in self.inputs
+    
+    def is_gate(self, node: str) -> bool:
+        return node in self.gates
+
+    def clone_gate(self, gate: LogicGate) -> None:
+        _gate = LogicGate(gate.gate_type, gate.inputs[:], gate.output, gate.data.copy())
+        self.gates[_gate.output] = _gate
 
 if __name__ == "__main__":
     import os

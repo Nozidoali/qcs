@@ -103,9 +103,9 @@ def post_process(circuit: QuantumCircuit, **kwargs) -> QuantumCircuit:
     return circuit_new
 
 def xor_block_grouping(network: LogicNetwork, **kwargs) -> QuantumCircuit:
-    plot_network_v: bool = kwargs.get("plot_network", True)
-    plot_circuit_v: bool = kwargs.get("plot_circuit", True)
-    verbose: bool = kwargs.get("verbose", True)
+    plot_network_v: bool = kwargs.get("plot_network", False)
+    plot_circuit_v: bool = kwargs.get("plot_circuit", False)
+    verbose: bool = kwargs.get("verbose", False)
 
     _is_valid = lambda x: (not network.is_pi(x)) and network.num_fanouts(x) == 1
 
