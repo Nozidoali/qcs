@@ -43,10 +43,6 @@ class LogicGate:
     def is_buf(self) -> bool:
         return self.gate_type == "="
 
-    @property
-    def is_pi(self) -> bool:
-        return len(self.inputs) == 0
-
 def _get_list(lst_str: str, s: str = None) -> list[str]:
     _str = lst_str.replace(s, "").strip()
     return [x.strip() for x in _str.split(",") if x.strip() != ""]

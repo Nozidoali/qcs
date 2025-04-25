@@ -2,3 +2,5 @@ rich
 
 gurobipy
 matplotlib
+
+pygraphviz

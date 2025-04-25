@@ -73,7 +73,6 @@ def cut_enumeration(network: LogicNetwork, **kwargs) -> dict[str, list[Structure
         )]
     return node_to_structures
 
-
 def library_mapping(network: LogicNetwork, node_to_structures: dict[str, list[Structure]], **kwargs) -> dict[str, Structure]:
     return {k: v[0] for k, v in node_to_structures.items()}
 
@@ -176,18 +175,15 @@ def xor_block_extraction(network: LogicNetwork, **kwargs) -> QuantumCircuit:
         if node in qubits: return
         for leaf in fanins_of(node):
             _mapping_rec(leaf)
-        print(f"Mapping {node} with fanins {fanins_of(node)} and product terms {node_to_best_structure[node].product_terms}")
-        qubits[node] = circuit.request_qubit()
+        target = qubits[node] = circuit.request_qubit()
         for _p in node_to_best_structure[node].product_terms:
             circuit.add_mcx(
-                # TODO: fix the phase
-                [qubits[x] for x in _p], qubits[node], [False] * len(_p), False)
+                [qubits[x] for x in _p], target, [False] * len(_p), False)
     for po in network.outputs: _mapping_rec(po)
     
     if plot_network_v: plot_network(network, show_name=verbose)
     if plot_circuit_v: plot_circuit(circuit)
     return circuit
-
 
 def extract(network: LogicNetwork) -> QuantumCircuit:
     circuit = QuantumCircuit()
@@ -195,15 +191,12 @@ def extract(network: LogicNetwork) -> QuantumCircuit:
     for _, input in enumerate(network.inputs):
         qubits[input] = circuit.request_qubit()
     for node, gate in network.gates.items():
-        qubits[node] = circuit.request_qubit()
+        target = qubits[node] = circuit.request_qubit()
         if gate.is_and:
-            ctrl1 = qubits[gate.inputs[0]]
-            ctrl2 = qubits[gate.inputs[1]]
-            target = qubits[node]
+            ctrl1, ctrl2 = map(lambda x: qubits[x], gate.inputs)
             p1, p2 = gate.data["p1"], gate.data["p2"]
             circuit.add_toffoli(ctrl1, ctrl2, target, p1, p2, True)
         else:
             ctrl = qubits[gate.inputs[0]]
-            target = qubits[gate.output]
             circuit.add_cnot(ctrl, target)
     return circuit
