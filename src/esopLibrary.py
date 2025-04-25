@@ -4,17 +4,26 @@ from logicNetwork import LogicNetwork
 from cutEnumeration import enumerate_cuts, extract_subnetwork
 from circuitExtract import xor_block_grouping
 
+idx = 0
+
 def eval_network(network: LogicNetwork) -> dict[str, int]:
-    circuit = xor_block_grouping(network)
+    circuit = xor_block_grouping(network, verbose=False, run_zx=True)
     return {"n_q": circuit.n_qubits, "n_t": circuit.num_t, "n_ands": network.n_ands}
 
 if __name__ == "__main__":
     import os
     from rich.pretty import pprint
+    
+    
     curr_dir = os.path.dirname(os.path.abspath(__file__))
     verilog_file = os.path.join(curr_dir, "../data/input/gf_mult2.v")
     network = LogicNetwork.from_verilog(open(verilog_file).read())
     node_to_cuts = enumerate_cuts(network)
+
+    # root = "po1"
+    # cut = ["pi4", "pi2", "pi3", "new_new_n8"]
+    # subnetwork = extract_subnetwork(network, root, cut)
+    # eval_results = eval_network(subnetwork)
 
     eval_results = {}
     for root, cuts in node_to_cuts.items():
@@ -22,4 +31,5 @@ if __name__ == "__main__":
         for cut in cuts:
             subnetwork = extract_subnetwork(network, root, cut)
             eval_results[root].append({"cut": cut, "eval": eval_network(subnetwork)})
+            
     pprint(eval_results)

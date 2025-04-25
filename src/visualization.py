@@ -6,6 +6,7 @@ import pygraphviz as pgv
 
 def plot_network(network: LogicNetwork, **kwargs) -> None:
     show_name: bool = kwargs.get("show_name", True)
+    file_name: str = kwargs.get("file_name", "network.png")
     NEW_LINE: str = "\\n"
     graph = pgv.AGraph(directed=True)
     for input in network.inputs:
@@ -17,7 +18,7 @@ def plot_network(network: LogicNetwork, **kwargs) -> None:
         for input in gate.inputs:
             graph.add_edge(input, node)
     graph.layout(prog="dot")
-    graph.draw("network.png")
+    graph.draw(file_name)
     
 def plot_params(circuit: QuantumCircuit, **kwargs) -> dict:
     params: dict = {}
@@ -63,6 +64,7 @@ def schedule_gates(circuit: QuantumCircuit, **kwargs) -> list:
 
 def plot_circuit(circuit: QuantumCircuit, **kwargs) -> None:    
     params: dict = plot_params(circuit, **kwargs)
+    file_name: str = kwargs.get("file_name", "circuit.png")
     
     _, ax = plt.subplots(figsize=params["figsize"], dpi=params["dpi"])
     ax.axis("off")
@@ -103,4 +105,5 @@ def plot_circuit(circuit: QuantumCircuit, **kwargs) -> None:
             l = {"X": "X", "S": "S", "HAD": "H"}[n]
             text(t, coord(g, "target"), l, c='white')
 
-    plt.savefig("circuit.png")
+    plt.savefig(file_name)
+    plt.close()

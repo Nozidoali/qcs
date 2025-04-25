@@ -107,11 +107,11 @@ def xor_block_grouping(network: LogicNetwork, **kwargs) -> QuantumCircuit:
     plot_circuit_v: bool = kwargs.get("plot_circuit", False)
     verbose: bool = kwargs.get("verbose", False)
 
-    _is_valid = lambda x: (not network.is_pi(x)) and network.num_fanouts(x) == 1
+    _is_valid = lambda x: network.num_fanouts(x) == 1 or network.is_pi(x)
 
     qubit_of: dict[str, int] = {pi: i for i, pi in enumerate(network.inputs)}
     n_qubits: int = len(qubit_of)
-    
+        
     for node, gate in network.gates.items():
         if gate.is_and:
             qubit_of[node] = n_qubits
@@ -138,6 +138,7 @@ def xor_block_grouping(network: LogicNetwork, **kwargs) -> QuantumCircuit:
     circuit = QuantumCircuit()
     circuit.request_qubits(n_qubits)
     qubit_is_clean: dict[int, bool] = {i: True for i in range(n_qubits)}
+    
     for node, gate in network.gates.items():
         qubit: int = qubit_of[node]
         if gate.is_and:
