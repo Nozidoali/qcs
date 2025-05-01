@@ -55,6 +55,7 @@ class LogicNetwork:
         
         # private
         self._node_fanouts: dict[str, set[str]] = {}
+        self._name: dict[str, str] = {}
     
     @staticmethod
     def from_verilog(verilog_str: str) -> "LogicNetwork":
@@ -77,6 +78,7 @@ class LogicNetwork:
                 gate = LogicGate.from_assignment(_get_list(line, "assign")[0])
                 ntk.gates[gate.output] = gate
         ntk._compute_fanouts()
+        ntk._rename()
         return ntk
     
     def to_verilog(self) -> str:
@@ -107,7 +109,17 @@ class LogicNetwork:
                 if input not in self._node_fanouts:
                     self._node_fanouts[input] = set()
                 self._node_fanouts[input].add(node)
-
+                
+    def _rename(self):
+        _gates: dict[str, LogicGate] = {}
+        for node, gate in self.gates.items():
+            _name = f"n{len(_gates)}"
+            self._name[node] = _name
+            _inputs = [self._name.get(i, i) for i in gate.inputs]
+            _gate = LogicGate(gate.gate_type, _inputs, _name, gate.data)
+            _gates[_name] = _gate
+        self.gates = _gates
+                
     def num_fanouts(self, node: str) -> int:
         return len(self._node_fanouts.get(node, 0))
 
