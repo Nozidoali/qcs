@@ -77,8 +77,8 @@ class LogicNetwork:
             if line.startswith("assign"):
                 gate = LogicGate.from_assignment(_get_list(line, "assign")[0])
                 ntk.gates[gate.output] = gate
-        ntk._compute_fanouts()
         ntk._rename()
+        ntk._compute_fanouts()
         return ntk
     
     def to_verilog(self) -> str:
