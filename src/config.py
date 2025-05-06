@@ -12,7 +12,6 @@ args = parser.parse_args()
 benchmark = args.benchmark
 
 ALL_INPUTS = [f for f in os.listdir(INPUT_DIR) if f.endswith(".v") and (not benchmark or benchmark in f)]
-
 BMARKS = [(
     f.replace(".v", ""),
     os.path.join(INPUT_DIR, f), 

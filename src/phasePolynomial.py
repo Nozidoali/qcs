@@ -1,9 +1,7 @@
 import itertools
-
 import gurobipy as gp
 import numpy as np
 from gurobipy import GRB
-
 
 def generate_xor_truth_tables(n_qubits: int):
     truth_tables = set()
@@ -18,7 +16,6 @@ def generate_xor_truth_tables(n_qubits: int):
             table.append(result)
         truth_tables.add((tuple(table), tuple(config)))
     return list(truth_tables)
-
 
 def synthesize_tt(tt: str, verbose: bool = False) -> list[float]:
     tt = tt.replace("_", "")
