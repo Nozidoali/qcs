@@ -23,7 +23,7 @@ def plot_network(network: LogicNetwork, **kwargs) -> None:
 def plot_params(circuit: QuantumCircuit, **kwargs) -> dict:
     params: dict = {}
     params["W"] = len(circuit.gates)
-    params["H"] = circuit.n_qubits
+    params["H"] = circuit.n_qubits + 2
     params["dpi"] = kwargs.get("dpi", 100)
     params["factor"] = kwargs.get("factor", 0.2)
     params["figsize"] = (params["W"] * params["factor"], params["H"] * params["factor"])
@@ -69,7 +69,7 @@ def plot_circuit(circuit: QuantumCircuit, **kwargs) -> None:
     _, ax = plt.subplots(figsize=params["figsize"], dpi=params["dpi"])
     ax.axis("off")
 
-    y = {q: q for q in range(circuit.n_qubits)}
+    y = {q: q+1 for q in range(circuit.n_qubits)}
     blend = mtrans.blended_transform_factory(ax.transAxes, ax.transData)
 
     [ax.axhline(yy, ls='-', lw=1, c='gray') for yy in y.values()]
