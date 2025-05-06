@@ -118,6 +118,8 @@ class LogicNetwork:
             _inputs = [self._name.get(i, i) for i in gate.inputs]
             _gate = LogicGate(gate.gate_type, _inputs, _name, gate.data)
             _gates[_name] = _gate
+        _outputs: list[str] = [self._name.get(o, o) for o in self.outputs]
+        self.outputs = _outputs
         self.gates = _gates
                 
     def num_fanouts(self, node: str) -> int:
