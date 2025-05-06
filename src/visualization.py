@@ -22,8 +22,10 @@ def plot_network(network: LogicNetwork, **kwargs) -> None:
     
 def plot_params(circuit: QuantumCircuit, **kwargs) -> dict:
     params: dict = {}
-    params["W"] = len(circuit.gates)
-    params["H"] = circuit.n_qubits + 2
+    params["X_MARGIN"] = kwargs.get("x_margin", 2)
+    params["Y_MARGIN"] = kwargs.get("y_margin", 1)
+    params["W"] = len(circuit.gates) + 2 * params["X_MARGIN"]
+    params["H"] = circuit.n_qubits   + 2 * params["Y_MARGIN"]
     params["dpi"] = kwargs.get("dpi", 100)
     params["factor"] = kwargs.get("factor", 0.2)
     params["figsize"] = (params["W"] * params["factor"], params["H"] * params["factor"])
@@ -69,13 +71,13 @@ def plot_circuit(circuit: QuantumCircuit, **kwargs) -> None:
     _, ax = plt.subplots(figsize=params["figsize"], dpi=params["dpi"])
     ax.axis("off")
 
-    y = {q: q+1 for q in range(circuit.n_qubits)}
+    y = {q: q+params["Y_MARGIN"] for q in range(circuit.n_qubits)}
     blend = mtrans.blended_transform_factory(ax.transAxes, ax.transData)
 
     [ax.axhline(yy, ls='-', lw=1, c='gray') for yy in y.values()]
     [ax.text(0, yy, f"q{q}", ha='right', va='center', fontsize=10, transform=blend, clip_on=False) for q, yy in y.items()]
     
-    x_of = schedule_gates(circuit)
+    x_of = {k: v + params["X_MARGIN"] for k, v in schedule_gates(circuit).items()}
 
     dot    = lambda x, yy, c='b'    : ax.plot([x], [yy], f'{c}o')
     square = lambda x, yy, c='b'    : ax.plot([x], [yy], f'{c}s', ms=10)
