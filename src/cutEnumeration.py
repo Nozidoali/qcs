@@ -16,7 +16,6 @@ def _filter_cuts(cuts: list[list[str]], **kwargs) -> list[list[str]]:
 
 def enumerate_cuts(network: LogicNetwork, **kwargs) -> dict[str, list]:
     use_unary_and: bool = kwargs.get("use_unary_and", False)
-    
     node_to_cuts: dict[str, list[list[str]]] = {pi: [[pi]] for pi in network.inputs}
     for node, gate in network.gates.items():
         node_to_cuts[node] = [[node], gate.inputs[:]]
@@ -52,24 +51,25 @@ def eval_network(network: LogicNetwork) -> dict[str, int]:
 def area_oriented_mapping(network: LogicNetwork, node_to_cuts: dict[str, list]) -> dict[str, list]:
     node_to_cost: dict[str, dict] = {}
     for pi in network.inputs:
-        node_to_cost[pi] = {"cut": [pi], "t_cost": 0, "n_cost": 0}
+        node_to_cost[pi] = {"cut": [pi], "t_cost": 0, "n_cost": 0, "qubits": set([pi])}
     for root, cuts in node_to_cuts.items():
         best_cut: list = None
         best_t_cost: int = float("inf")
         best_n_cost: int = float("inf")
+        best_qubits: set = set()
         for cut in cuts:
             is_valid: bool = all([node in node_to_cost for node in cut])
             if not is_valid: continue
             subnetwork = extract_subnetwork(network, root, cut)
             _t_cost: float = eval_network(subnetwork)["n_t"]
-            _n_cost: float = eval_network(subnetwork)["n_q"]
+            _qubits: set = set()
             for i in range(len(cut)):
                 _t_cost += node_to_cost[cut[i]]["t_cost"]
-                _n_cost += node_to_cost[cut[i]]["n_cost"]
+                _qubits = _qubits.union(_qubits, node_to_cost[cut[i]]["qubits"])
             if _t_cost > best_t_cost: continue
-            if _t_cost == best_t_cost and _n_cost > best_n_cost: continue
-            best_cut, best_n_cost, best_t_cost = cut[:], _n_cost, _t_cost
-        node_to_cost[root] = {"cut": best_cut, "t_cost": best_t_cost, "n_cost": best_n_cost}
+            if _t_cost == best_t_cost and len(_qubits) > best_n_cost: continue
+            best_cut, best_n_cost, best_t_cost, best_qubits = cut[:], len(_qubits), _t_cost, _qubits
+        node_to_cost[root] = {"cut": best_cut, "t_cost": best_t_cost, "n_cost": best_n_cost, "qubits": best_qubits}
     return {node: node_to_cost[node]["cut"] for node in node_to_cost}
 
 if __name__ == "__main__":

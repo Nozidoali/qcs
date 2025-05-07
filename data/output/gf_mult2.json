@@ -1,191 +1,48 @@
 [
     {
-        "name": "HAD",
-        "target": 4
-    },
-    {
-        "name": "T",
-        "target": 4
-    },
-    {
-        "name": "CNOT",
-        "ctrl": 0,
-        "target": 4
-    },
-    {
-        "name": "CNOT",
-        "ctrl": 2,
-        "target": 4
-    },
-    {
-        "name": "CNOT",
-        "ctrl": 4,
-        "target": 2
-    },
-    {
-        "name": "CNOT",
-        "ctrl": 4,
-        "target": 0
-    },
-    {
-        "name": "T",
-        "target": 0
-    },
-    {
-        "name": "T",
-        "target": 2
-    },
-    {
-        "name": "T",
-        "target": 4
-    },
-    {
-        "name": "CNOT",
-        "ctrl": 4,
-        "target": 0
-    },
-    {
-        "name": "CNOT",
-        "ctrl": 4,
-        "target": 2
-    },
-    {
-        "name": "S",
-        "target": 0
-    },
-    {
-        "name": "HAD",
-        "target": 5
-    },
-    {
-        "name": "T",
-        "target": 5
-    },
-    {
-        "name": "CNOT",
-        "ctrl": 1,
-        "target": 5
-    },
-    {
-        "name": "CNOT",
-        "ctrl": 3,
-        "target": 5
-    },
-    {
-        "name": "CNOT",
-        "ctrl": 5,
-        "target": 3
-    },
-    {
-        "name": "CNOT",
-        "ctrl": 5,
-        "target": 1
-    },
-    {
-        "name": "T",
-        "target": 1
-    },
-    {
-        "name": "T",
-        "target": 3
-    },
-    {
-        "name": "T",
-        "target": 5
-    },
-    {
-        "name": "CNOT",
-        "ctrl": 5,
-        "target": 1
-    },
-    {
-        "name": "CNOT",
-        "ctrl": 5,
-        "target": 3
-    },
-    {
-        "name": "S",
-        "target": 1
-    },
-    {
-        "name": "HAD",
-        "target": 4
-    },
-    {
-        "name": "HAD",
-        "target": 5
-    },
-    {
-        "name": "CNOT",
-        "ctrl": 4,
-        "target": 5
-    },
-    {
-        "name": "HAD",
-        "target": 6
-    },
-    {
-        "name": "T",
-        "target": 6
-    },
-    {
-        "name": "CNOT",
-        "ctrl": 1,
-        "target": 6
-    },
-    {
-        "name": "CNOT",
-        "ctrl": 2,
-        "target": 6
-    },
-    {
         "name": "CNOT",
         "ctrl": 6,
-        "target": 2
-    },
-    {
-        "name": "CNOT",
-        "ctrl": 6,
-        "target": 1
-    },
-    {
-        "name": "T",
-        "target": 1
-    },
-    {
-        "name": "T",
-        "target": 2
-    },
-    {
-        "name": "T",
-        "target": 6
-    },
-    {
-        "name": "CNOT",
-        "ctrl": 6,
-        "target": 1
-    },
-    {
-        "name": "CNOT",
-        "ctrl": 6,
-        "target": 2
-    },
-    {
-        "name": "S",
-        "target": 1
-    },
-    {
-        "name": "HAD",
-        "target": 7
-    },
-    {
-        "name": "T",
         "target": 7
     },
     {
         "name": "CNOT",
-        "ctrl": 0,
+        "ctrl": 7,
+        "target": 6
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 6,
         "target": 7
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 5,
+        "target": 7
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 7,
+        "target": 5
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 5,
+        "target": 7
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 4,
+        "target": 5
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 5,
+        "target": 4
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 4,
+        "target": 5
     },
     {
         "name": "CNOT",
@@ -199,30 +56,687 @@
     },
     {
         "name": "CNOT",
-        "ctrl": 7,
+        "ctrl": 3,
+        "target": 7
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 2,
+        "target": 4
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 4,
+        "target": 2
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 2,
+        "target": 4
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 1,
+        "target": 2
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 2,
+        "target": 1
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 1,
+        "target": 2
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 0,
+        "target": 6
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 6,
         "target": 0
     },
     {
-        "name": "T",
+        "name": "CNOT",
+        "ctrl": 0,
+        "target": 6
+    },
+    {
+        "name": "HAD",
+        "target": 5
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 4,
+        "target": 5
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 5,
+        "target": 6
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 6,
+        "target": 4
+    },
+    {
+        "name": "HAD",
+        "target": 6
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 0,
+        "target": 6
+    },
+    {
+        "name": "HAD",
+        "target": 5
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 0,
+        "target": 5
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 1,
+        "target": 6
+    },
+    {
+        "name": "HAD",
+        "target": 4
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 1,
+        "target": 4
+    },
+    {
+        "name": "HAD",
         "target": 0
     },
     {
-        "name": "T",
+        "name": "CNOT",
+        "ctrl": 0,
+        "target": 7
+    },
+    {
+        "name": "HAD",
+        "target": 7
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 3,
+        "target": 7
+    },
+    {
+        "name": "HAD",
+        "target": 2
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 2,
+        "target": 6
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 2,
+        "target": 4
+    },
+    {
+        "name": "HAD",
+        "target": 1
+    },
+    {
+        "name": "HAD",
+        "target": 2
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 1,
+        "target": 2
+    },
+    {
+        "name": "HAD",
         "target": 3
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 0,
+        "target": 3
+    },
+    {
+        "name": "HAD",
+        "target": 1
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 0,
+        "target": 1
+    },
+    {
+        "name": "HAD",
+        "target": 1
+    },
+    {
+        "name": "T",
+        "target": 1
+    },
+    {
+        "name": "HAD",
+        "target": 5
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 5,
+        "target": 7
+    },
+    {
+        "name": "HAD",
+        "target": 5
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 3,
+        "target": 5
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 2,
+        "target": 6
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 2,
+        "target": 5
+    },
+    {
+        "name": "HAD",
+        "target": 1
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 1,
+        "target": 4
+    },
+    {
+        "name": "HAD",
+        "target": 2
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 1,
+        "target": 2
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 0,
+        "target": 2
+    },
+    {
+        "name": "HAD",
+        "target": 5
+    },
+    {
+        "name": "T",
+        "target": 5
+    },
+    {
+        "name": "HAD",
+        "target": 4
+    },
+    {
+        "name": "T",
+        "target": 4
+    },
+    {
+        "name": "HAD",
+        "target": 2
+    },
+    {
+        "name": "T",
+        "target": 2
+    },
+    {
+        "name": "HAD",
+        "target": 6
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 6,
+        "target": 7
+    },
+    {
+        "name": "HAD",
+        "target": 5
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 5,
+        "target": 7
+    },
+    {
+        "name": "HAD",
+        "target": 6
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 5,
+        "target": 6
+    },
+    {
+        "name": "HAD",
+        "target": 4
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 4,
+        "target": 7
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 3,
+        "target": 6
+    },
+    {
+        "name": "HAD",
+        "target": 2
+    },
+    {
+        "name": "HAD",
+        "target": 3
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 2,
+        "target": 3
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 0,
+        "target": 1
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 1,
+        "target": 7
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 1,
+        "target": 6
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 1,
+        "target": 3
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 0,
+        "target": 1
+    },
+    {
+        "name": "X",
+        "target": 7
+    },
+    {
+        "name": "HAD",
+        "target": 7
     },
     {
         "name": "T",
         "target": 7
     },
     {
+        "name": "X",
+        "target": 3
+    },
+    {
+        "name": "HAD",
+        "target": 3
+    },
+    {
+        "name": "T",
+        "target": 3
+    },
+    {
+        "name": "X",
+        "target": 6
+    },
+    {
+        "name": "HAD",
+        "target": 6
+    },
+    {
+        "name": "T",
+        "target": 6
+    },
+    {
+        "name": "HAD",
+        "target": 5
+    },
+    {
         "name": "CNOT",
-        "ctrl": 7,
+        "ctrl": 5,
+        "target": 7
+    },
+    {
+        "name": "HAD",
+        "target": 5
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 4,
+        "target": 5
+    },
+    {
+        "name": "HAD",
+        "target": 3
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 3,
+        "target": 5
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 2,
+        "target": 5
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 0,
+        "target": 7
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 0,
+        "target": 6
+    },
+    {
+        "name": "HAD",
+        "target": 1
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 0,
+        "target": 1
+    },
+    {
+        "name": "X",
+        "target": 5
+    },
+    {
+        "name": "HAD",
+        "target": 5
+    },
+    {
+        "name": "T",
+        "target": 5
+    },
+    {
+        "name": "T",
+        "target": 0
+    },
+    {
+        "name": "HAD",
+        "target": 4
+    },
+    {
+        "name": "HAD",
+        "target": 7
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 4,
+        "target": 7
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 4,
+        "target": 6
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 3,
+        "target": 7
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 1,
+        "target": 7
+    },
+    {
+        "name": "HAD",
         "target": 0
     },
     {
         "name": "CNOT",
+        "ctrl": 0,
+        "target": 7
+    },
+    {
+        "name": "HAD",
+        "target": 7
+    },
+    {
+        "name": "CNOT",
         "ctrl": 7,
+        "target": 1
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 1,
+        "target": 6
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 1,
+        "target": 5
+    },
+    {
+        "name": "HAD",
+        "target": 2
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 1,
+        "target": 2
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 7,
+        "target": 1
+    },
+    {
+        "name": "T",
+        "target": 1
+    },
+    {
+        "name": "HAD",
+        "target": 7
+    },
+    {
+        "name": "X",
+        "target": 7
+    },
+    {
+        "name": "HAD",
+        "target": 7
+    },
+    {
+        "name": "T",
+        "target": 7
+    },
+    {
+        "name": "T",
+        "target": 4
+    },
+    {
+        "name": "HAD",
         "target": 3
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 3,
+        "target": 7
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 3,
+        "target": 6
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 2,
+        "target": 6
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 2,
+        "target": 4
+    },
+    {
+        "name": "HAD",
+        "target": 1
+    },
+    {
+        "name": "HAD",
+        "target": 3
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 1,
+        "target": 3
+    },
+    {
+        "name": "HAD",
+        "target": 3
+    },
+    {
+        "name": "T",
+        "target": 3
+    },
+    {
+        "name": "T",
+        "target": 2
+    },
+    {
+        "name": "HAD",
+        "target": 4
+    },
+    {
+        "name": "HAD",
+        "target": 5
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 4,
+        "target": 5
+    },
+    {
+        "name": "HAD",
+        "target": 3
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 3,
+        "target": 5
+    },
+    {
+        "name": "HAD",
+        "target": 1
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 1,
+        "target": 7
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 1,
+        "target": 5
+    },
+    {
+        "name": "HAD",
+        "target": 3
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 1,
+        "target": 3
+    },
+    {
+        "name": "HAD",
+        "target": 0
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 0,
+        "target": 7
+    },
+    {
+        "name": "HAD",
+        "target": 4
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 0,
+        "target": 4
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 1,
+        "target": 6
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 6,
+        "target": 4
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 6,
+        "target": 2
+    },
+    {
+        "name": "HAD",
+        "target": 0
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 6,
+        "target": 0
+    },
+    {
+        "name": "CNOT",
+        "ctrl": 1,
+        "target": 6
+    },
+    {
+        "name": "T",
+        "target": 6
+    },
+    {
+        "name": "HAD",
+        "target": 5
+    },
+    {
+        "name": "T",
+        "target": 5
+    },
+    {
+        "name": "S",
+        "target": 1
+    },
+    {
+        "name": "HAD",
+        "target": 0
     },
     {
         "name": "S",
@@ -230,15 +744,18 @@
     },
     {
         "name": "HAD",
-        "target": 7
+        "target": 4
     },
     {
-        "name": "CNOT",
-        "ctrl": 7,
+        "name": "HAD",
         "target": 5
     },
     {
         "name": "HAD",
         "target": 6
+    },
+    {
+        "name": "HAD",
+        "target": 7
     }
 ]

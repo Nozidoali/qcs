@@ -4,6 +4,7 @@ from logicNetwork import LogicNetwork, LogicGate
 from quantumCircuit import QuantumCircuit
 from cutEnumeration import enumerate_cuts, area_oriented_mapping
 from visualization import plot_network, plot_circuit
+from circuitExtract import post_process
 
 def _collect_nodes_in_topological_order(network: LogicNetwork, root: str, cut: list[str]) -> list[str]:
     visited: set[str] = set()
@@ -28,15 +29,18 @@ def _retrieve_nework_rec(network: LogicNetwork, circuit: QuantumCircuit, node_to
     for i, f in enumerate(cut):
         _retrieve_nework_rec(network, circuit, node_to_cut, node_to_qubit, f)
 
-    # TODO: map the logic
     gates_to_add: list[LogicGate] = [network.gates[x] for x in _collect_nodes_in_topological_order(network, node, cut)]
     
     gate: LogicGate
     for gate in gates_to_add:
         if gate.is_buf: continue
-        if gate.is_xor: continue
-        if gate.is_and:
+        elif gate.is_xor:
+            for f in gate.inputs:
+                if node_to_qubit[f] != root_index:
+                    circuit.add_cnot(node_to_qubit[f], root_index)
+        elif gate.is_and:
             circuit.add_toffoli(node_to_qubit[gate.inputs[0]], node_to_qubit[gate.inputs[1]], root_index)
+        node_to_qubit[gate.output] = root_index
 
 def retrieve_network(network: LogicNetwork, node_to_cut: dict[str, list]) -> QuantumCircuit:
     circuit: QuantumCircuit = QuantumCircuit()
@@ -47,6 +51,8 @@ def retrieve_network(network: LogicNetwork, node_to_cut: dict[str, list]) -> Qua
         
     for po in network.outputs:
         _retrieve_nework_rec(network, circuit, node_to_cut, node_to_qubit, po)
+        
+    pprint(node_to_qubit)
     return circuit
 
 if __name__ == "__main__":
@@ -65,4 +71,8 @@ if __name__ == "__main__":
     pprint(node_to_cut)
     
     circuit: QuantumCircuit = retrieve_network(network, node_to_cut)
-    plot_circuit(circuit, file_name=f"{benchmark}_circuit.png")
+    circuit_opt = post_process(circuit, run_zx=True)
+    plot_circuit(circuit_opt, file_name=f"{benchmark}_circuit.png")
+    
+    datas = {"n_ands": network.n_ands, "n_t": circuit_opt.num_t, "n_qubits": circuit_opt.n_qubits}
+    pprint(datas)
