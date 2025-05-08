@@ -1,4 +1,3 @@
-import json
 from rich.pretty import pprint
 
 from logicNetwork import LogicNetwork, LogicGate
@@ -86,7 +85,6 @@ def xor_block_grouping(network: LogicNetwork, **kwargs) -> QuantumCircuit:
     if plot_circuit_v: plot_circuit(circuit)
     return circuit
 
-
 def _uniquify_cuts(cuts: list[list[str]]) -> list[list[str]]:
     _hash = lambda x: tuple(sorted(x))
     return list({ _hash(cut): cut for cut in cuts }.values())
@@ -120,12 +118,12 @@ def enumerate_cuts(network: LogicNetwork, **kwargs) -> dict[str, list]:
 def extract_subnetwork(network: LogicNetwork, root: str, cut: list[str]) -> LogicNetwork:
     sub_network = LogicNetwork()
     for node in cut: sub_network.create_pi(node)
-    def extract_rec(_n: str) -> None:
+    def extract_subnetwork_rec(_n: str) -> None:
         if sub_network.has(_n): return
         assert network.is_gate(_n)
-        for f in network.fanins(_n): extract_rec(f)
+        for f in network.fanins(_n): extract_subnetwork_rec(f)
         sub_network.clone_gate(network.get_gate(_n))
-    extract_rec(root)
+    extract_subnetwork_rec(root)
     sub_network.create_po(root)
     sub_network._compute_fanouts()
     return sub_network
@@ -133,32 +131,6 @@ def extract_subnetwork(network: LogicNetwork, root: str, cut: list[str]) -> Logi
 def eval_network(network: LogicNetwork) -> dict[str, int]:
     circuit = xor_block_grouping(network, verbose=False, run_zx=True)
     return {"n_q": circuit.n_qubits, "n_t": circuit.num_t, "n_ands": network.n_ands}
-
-def area_oriented_mapping(network: LogicNetwork, node_to_cuts: dict[str, list]) -> dict[str, list]:
-    node_to_cost: dict[str, dict] = {}
-    for pi in network.inputs:
-        node_to_cost[pi] = {"cut": [pi], "t_cost": 0, "n_cost": 0, "qubits": set([pi])}
-    for root, cuts in node_to_cuts.items():
-        best_cut: list = None
-        best_t_cost: int = float("inf")
-        best_n_cost: int = float("inf")
-        best_qubits: set = set()
-        for cut in cuts:
-            is_valid: bool = all([node in node_to_cost for node in cut])
-            if not is_valid: continue
-            subnetwork = extract_subnetwork(network, root, cut)
-            _t_cost: float = eval_network(subnetwork)["n_t"]
-            _qubits: set = set([root])
-            for i in range(len(cut)):
-                _t_cost += node_to_cost[cut[i]]["t_cost"]
-                _qubits = _qubits.union(_qubits, node_to_cost[cut[i]]["qubits"])
-            # if _t_cost > best_t_cost: continue
-            # if _t_cost == best_t_cost and len(_qubits) > best_n_cost: continue
-            if len(_qubits) > best_n_cost: continue
-            if len(_qubits) == best_n_cost and _t_cost > best_t_cost: continue
-            best_cut, best_n_cost, best_t_cost, best_qubits = cut[:], len(_qubits), _t_cost, _qubits
-        node_to_cost[root] = {"cut": best_cut, "t_cost": best_t_cost, "n_cost": best_n_cost, "qubits": best_qubits}
-    return {node: node_to_cost[node]["cut"] for node in node_to_cost}
 
 def _collect_nodes_in_topological_order(network: LogicNetwork, root: str, cut: list[str]) -> list[str]:
     visited: set[str] = set()
@@ -182,17 +154,16 @@ def _retrieve_nework_rec(network: LogicNetwork, circuit: QuantumCircuit, node_to
         _retrieve_nework_rec(network, circuit, node_to_cut, node_to_qubit, f)
     gates_to_add: list[LogicGate] = [network.gates[x] for x in _collect_nodes_in_topological_order(network, node, cut)]
     gate: LogicGate
-    is_clean: bool = True
-    for gate in gates_to_add:
+    for i, gate in enumerate(gates_to_add):
         if gate.is_buf: continue
         elif gate.is_xor:
             for f in gate.inputs:
                 if node_to_qubit[f] != root_index:
                     circuit.add_cnot(node_to_qubit[f], root_index)
         elif gate.is_and:
-            circuit.add_toffoli(node_to_qubit[gate.inputs[0]], node_to_qubit[gate.inputs[1]], root_index, clean=is_clean)
+            # TODO: consider the polarity of the gate
+            circuit.add_toffoli(node_to_qubit[gate.inputs[0]], node_to_qubit[gate.inputs[1]], root_index, clean=(i==0))
         node_to_qubit[gate.output] = root_index
-        is_clean = False
 
 def retrieve_network(network: LogicNetwork, node_to_cut: dict[str, list]) -> QuantumCircuit:
     circuit: QuantumCircuit = QuantumCircuit()
@@ -218,6 +189,28 @@ def extract_simple(network: LogicNetwork) -> QuantumCircuit:
             ctrl = qubits[gate.inputs[0]]
             circuit.add_cnot(ctrl, target)
     return circuit
+
+def area_oriented_mapping(network: LogicNetwork, node_to_cuts: dict[str, list]) -> dict[str, list]:
+    node_to_cost: dict[str, dict] = {}
+    for pi in network.inputs:
+        node_to_cost[pi] = {"cut": [pi], "t_cost": 0, "n_cost": 0, "qubits": set([pi])}
+    for root, cuts in node_to_cuts.items():
+        best_cut, best_t_cost, best_n_cost, best_qubits = None, float("inf"), float("inf"), set()
+        for cut in cuts:
+            if not all([node in node_to_cost for node in cut]): continue
+            subnetwork = extract_subnetwork(network, root, cut)
+            _t_cost: float = eval_network(subnetwork)["n_t"]
+            _qubits: set = set([root])
+            for i in range(len(cut)):
+                _t_cost += node_to_cost[cut[i]]["t_cost"]
+                _qubits = _qubits.union(_qubits, node_to_cost[cut[i]]["qubits"])
+            # if _t_cost > best_t_cost: continue
+            # if _t_cost == best_t_cost and len(_qubits) > best_n_cost: continue
+            if len(_qubits) > best_n_cost: continue
+            if len(_qubits) == best_n_cost and _t_cost > best_t_cost: continue
+            best_cut, best_n_cost, best_t_cost, best_qubits = cut[:], len(_qubits), _t_cost, _qubits
+        node_to_cost[root] = {"cut": best_cut, "t_cost": best_t_cost, "n_cost": best_n_cost, "qubits": best_qubits}
+    return {node: node_to_cost[node]["cut"] for node in node_to_cost}
 
 def extract_q_opt(network: LogicNetwork) -> QuantumCircuit:
     node_to_cuts: dict[str, list] = enumerate_cuts(network)

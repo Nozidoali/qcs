@@ -11,6 +11,9 @@ parser.add_argument("--benchmark", type=str, default=None, help="Benchmark name 
 args = parser.parse_args()
 benchmark = args.benchmark
 
+def get_benchmark(_s: str) -> str:
+    return [os.path.join(INPUT_DIR, f) for f in os.listdir(INPUT_DIR) if f.endswith(".v") and _s in f][0]
+
 ALL_INPUTS = [f for f in os.listdir(INPUT_DIR) if f.endswith(".v") and (not benchmark or benchmark in f)]
 BMARKS = [(
     f.replace(".v", ""),

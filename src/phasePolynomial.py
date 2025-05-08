@@ -1,7 +1,9 @@
 import itertools
-import gurobipy as gp
 import numpy as np
+import gurobipy as gp
 from gurobipy import GRB
+from config import *
+from logicNetwork import LogicNetwork
 
 def generate_xor_truth_tables(n_qubits: int):
     truth_tables = set()
@@ -35,7 +37,7 @@ def synthesize_tt(tt: str, verbose: bool = False) -> list[float]:
     Q_UB: int = int(np.floor(X_UB / 2))
     x = model.addVars(n_vars, vtype=GRB.INTEGER, name="x", lb=X_LB, ub=X_UB)
     q = model.addVars(n_vars, vtype=GRB.INTEGER, name="q", lb=Q_LB, ub=Q_UB)
-    d = model.addVars(n_vars, vtype=GRB.BINARY, name="d")
+    d = model.addVars(n_vars, vtype=GRB.BINARY,  name="d")
     for i in range(n_vars):
         model.addConstr(x[i] == 2 * q[i] + d[i], name=f"mod2_{i}")
     model.setObjective(gp.quicksum(d[i] for i in range(n_vars)), GRB.MINIMIZE)
@@ -55,9 +57,44 @@ def synthesize_tt(tt: str, verbose: bool = False) -> list[float]:
     if model.status == GRB.OPTIMAL:
         solution = model.getAttr("x", x)
         print("Optimal solution:")
-        for i in range(n_vars):
-            print(f"x[{i}] = {solution[i]}")
+        for i in range(n_vars): print(f"x[{i}] = {solution[i]}")
     else:
         print("No optimal solution found.")
         return None
     return [solution[i] for i in range(n_vars)]
+
+def logic_to_unitary(network: LogicNetwork) -> np.ndarray:
+    if network.n_pos != 1: raise NotImplementedError("Only single-output networks are supported.")
+    n_qubits: int = network.n_pis + network.n_pos
+    unitary: np.ndarray = np.zeros((2**n_qubits, 2**n_qubits), dtype=int)
+    network.simulate()
+    pattern: int = network.get_pattern(network.outputs[0])
+    for _x in range(2**network.n_pis):
+        for p in range(2):
+            x = (_x << 1) | p
+            y = (_x << 1) | (1-p if pattern & (1 << _x) else p)
+            unitary[x, y] = 1
+    return unitary
+
+def logic_to_d3(network: LogicNetwork) -> np.ndarray:
+    if network.n_pos != 1: raise NotImplementedError("Only single-output networks are supported.")
+    n_qubits: int = network.n_pis + network.n_pos
+    d3: np.ndarray = np.zeros(2**(n_qubits), dtype=int)
+    network.simulate()
+    pattern: int = network.get_pattern(network.outputs[0])
+    for _x in range(2**network.n_pis):
+        x = (_x << 1) | 1
+        if pattern & (1 << _x): d3[x] = 4
+    return d3
+
+if __name__ == "__main__":
+    from rich.pretty import pprint
+    
+    # verilog_file: str = get_benchmark("stg_small")
+    verilog_file: str = get_benchmark("and")
+    network: LogicNetwork = LogicNetwork.from_verilog(open(verilog_file).read())
+    unitary: np.ndarray = logic_to_unitary(network)
+    d3: np.ndarray = logic_to_d3(network)
+    print("D3:", d3)
+    print("Unitary:")
+    pprint(unitary)

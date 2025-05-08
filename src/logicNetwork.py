@@ -56,6 +56,7 @@ class LogicNetwork:
         # private
         self._node_fanouts: dict[str, set[str]] = {}
         self._name: dict[str, str] = {}
+        self._node_patterns: dict[str, int] = {}
     
     @staticmethod
     def from_verilog(verilog_str: str) -> "LogicNetwork":
@@ -97,6 +98,14 @@ class LogicNetwork:
     def n_ands(self) -> int:
         return sum(gate.is_and for gate in self.gates.values())
     
+    @property
+    def n_pos(self) -> int:
+        return len(self.outputs)
+    
+    @property
+    def n_pis(self) -> int:
+        return len(self.inputs)
+    
     def get_gate(self, node: str) -> LogicGate:
         return self.gates.get(node, None)
     
@@ -116,8 +125,7 @@ class LogicNetwork:
             _name = f"n{len(_gates)}"
             self._name[node] = _name
             _inputs = [self._name.get(i, i) for i in gate.inputs]
-            _gate = LogicGate(gate.gate_type, _inputs, _name, gate.data)
-            _gates[_name] = _gate
+            _gates[_name] = LogicGate(gate.gate_type, _inputs, _name, gate.data)
         _outputs: list[str] = [self._name.get(o, o) for o in self.outputs]
         self.outputs = _outputs
         self.gates = _gates
@@ -146,6 +154,37 @@ class LogicNetwork:
     def clone_gate(self, gate: LogicGate) -> None:
         _gate = LogicGate(gate.gate_type, gate.inputs[:], gate.output, gate.data.copy())
         self.gates[_gate.output] = _gate
+        
+    def simulate(self) -> int:
+        if self.n_pis >= 5:
+            raise NotImplementedError("Simulation for more than 16 inputs is not implemented")
+        mask: int = (1<<(1<<self.n_pis)) - 1
+        for i, _i in enumerate(self.inputs):
+            self._node_patterns[_i] = 0
+            for x in range(1 << self.n_pis):
+                if ((x >> i) & 1) == 1: self._node_patterns[_i] |= (1 << x)
+            self._node_patterns[_i] &= mask
+        for _n, gate in self.gates.items():
+            if gate.is_and:
+                _p1, _p2 = map(lambda x: self._node_patterns[x], gate.inputs)
+                _p1 = ~_p1 & mask if gate.data["p1"] else _p1
+                _p2 = ~_p2 & mask if gate.data["p2"] else _p2
+                self._node_patterns[_n] = ~(_p1 & _p2) & mask if gate.data["p3"] else _p1 & _p2
+            elif gate.is_buf:
+                _p1 = self._node_patterns[gate.inputs[0]]
+                self._node_patterns[_n] = ~_p1 & mask if gate.data["p1"] else _p1
+            elif gate.is_xor:
+                _p1, _p2 = map(lambda x: self._node_patterns[x], gate.inputs)
+                _p1 = ~_p1 & mask if gate.data["p1"] else _p1
+                _p2 = ~_p2 & mask if gate.data["p2"] else _p2
+                self._node_patterns[_n] = (_p1 ^ _p2) & mask if gate.data["p3"] else ~(_p1 ^ _p2) & mask
+            else:
+                raise NotImplementedError("Simulation for this gate is not implemented")
+    
+    def get_pattern(self, node: str) -> int:
+        if node not in self._node_patterns:
+            raise ValueError(f"Node {node} not found in the network")
+        return self._node_patterns[node]
 
 if __name__ == "__main__":
     import os
