@@ -83,7 +83,7 @@ class LogicNetwork:
         return ntk
     
     def to_verilog(self) -> str:
-        verilog_str = "module top(\n"
+        verilog_str  = "module top(\n"
         verilog_str += ", ".join(self.inputs + self.outputs) + "\n"
         verilog_str += ");\n"
         verilog_str += "  input "  + ", ".join(self.inputs) + ";\n"

@@ -19,12 +19,12 @@ def generate_xor_truth_tables(n_qubits: int):
         truth_tables.add((tuple(table), tuple(config)))
     return list(truth_tables)
 
-def synthesize_tt(tt: str, verbose: bool = False) -> list[float]:
-    tt = tt.replace("_", "")
-    n_qubits: int = int(np.log2(len(tt)))
+def synthesize_d3(d3: np.ndarray, verbose: bool = False) -> list[float]:
+    n_qubits: int = int(np.log2(d3.size))
+    n_patterns: int = d3.size
+    
     A = generate_xor_truth_tables(n_qubits)
     n_vars: int = len(A)
-    n_patterns: int = len(tt)
     if verbose:
         print("Coefficient Matrix:")
         for i in range(n_vars):
@@ -44,11 +44,11 @@ def synthesize_tt(tt: str, verbose: bool = False) -> list[float]:
 
     vq = model.addVars(n_patterns, vtype=GRB.INTEGER, name="vq")
     for j in range(n_patterns):
-        if tt[j] not in ["0", "1"]:
+        if d3[j] < 0:
             continue  # don't care
         model.addConstr(
             gp.quicksum(A[k][0][j] * x[k] for k in range(n_vars))
-            == vq[j] * 8 + int(tt[j]) * 4,
+            == vq[j] * 8 + int(d3[j]),
             name=f"phase_{j}",
         )
     model.update()
@@ -90,11 +90,12 @@ def logic_to_d3(network: LogicNetwork) -> np.ndarray:
 if __name__ == "__main__":
     from rich.pretty import pprint
     
-    # verilog_file: str = get_benchmark("stg_small")
-    verilog_file: str = get_benchmark("and")
+    verilog_file: str = get_benchmark("stg_small")
+    # verilog_file: str = get_benchmark("and")
     network: LogicNetwork = LogicNetwork.from_verilog(open(verilog_file).read())
     unitary: np.ndarray = logic_to_unitary(network)
     d3: np.ndarray = logic_to_d3(network)
     print("D3:", d3)
     print("Unitary:")
     pprint(unitary)
+    synthesize_d3(d3, verbose=True)
