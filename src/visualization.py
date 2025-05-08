@@ -29,6 +29,7 @@ def plot_params(circuit: QuantumCircuit, **kwargs) -> dict:
     params["dpi"] = kwargs.get("dpi", 100)
     params["factor"] = kwargs.get("factor", 0.2)
     params["figsize"] = (params["W"] * params["factor"], params["H"] * params["factor"])
+    params["fontsize"] = kwargs.get("font_size", 8)
     
     """
         b  blue          m  magenta
@@ -75,7 +76,7 @@ def plot_circuit(circuit: QuantumCircuit, **kwargs) -> None:
     blend = mtrans.blended_transform_factory(ax.transAxes, ax.transData)
 
     [ax.axhline(yy, ls='-', lw=1, c='gray') for yy in y.values()]
-    [ax.text(0, yy, f"q{q}", ha='right', va='center', fontsize=10, transform=blend, clip_on=False) for q, yy in y.items()]
+    [ax.text(0, yy, f"q{q}", ha='right', va='center', fontsize=params["fontsize"], transform=blend, clip_on=False) for q, yy in y.items()]
     
     x_of = {k: v + params["X_MARGIN"] for k, v in schedule_gates(circuit).items()}
 

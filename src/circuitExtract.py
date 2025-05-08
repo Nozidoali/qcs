@@ -5,76 +5,6 @@ from logicNetwork import LogicNetwork, LogicGate
 from quantumCircuit import QuantumCircuit
 from visualization import plot_circuit, plot_network
 
-AND_GATE_T_COST: int = 4
-
-class Structure:
-    def __init__(self, leaves: list[str], root: str, Tcost: int, 
-                exposed_signals: list[str] = [], product_terms: list[str] = []):
-        self.leaves = leaves
-        self.root = root
-        self.Tcost = Tcost
-        self.exposed_signals = exposed_signals
-        self.product_terms = product_terms
-
-    def to_json(self) -> dict:
-        return {
-            "leaves": self.leaves,
-            "root": self.root,
-            "T cost": self.Tcost,
-            "exposed signals": self.exposed_signals,
-            "product terms": self.product_terms
-        }
-
-def cut_enumeration(network: LogicNetwork, **kwargs) -> dict[str, list[Structure]]:
-    max_inputs: int = kwargs.get("max_inputs", 2)
-    
-    _is_valid = lambda x: (not network.is_pi(x)) and network.get_gate(x).is_and and network.num_fanouts(x) == 1
-    inputs_of = lambda x: network.get_gate(x).inputs
-    
-    node_to_structures: dict = {}
-    for pi in network.inputs:
-        node_to_structures[pi] = [Structure([pi], 0, pi)]
-    for node, gate in network.gates.items():
-        _leaves: set[str] = set(gate.inputs[:])
-        if gate.is_and: # AND gate cannot be used in XOR block
-            node_to_structures[node] = [Structure(list(_leaves), node, AND_GATE_T_COST, [], [inputs_of(node)[:]])]
-            continue
-        exposed_signals: set[str] = set({node})
-        while True:
-            cut_expanded: bool = False
-            leaves_added: set[str] = set()
-            for l in _leaves:
-                _gate = network.get_gate(l)
-                if _gate and _gate.is_xor:
-                    exposed_signals.add(l)
-                    leaves_added.update(inputs_of(l))
-                    cut_expanded = True
-            _leaves.update(leaves_added)
-            _leaves.difference_update(exposed_signals)
-            if not cut_expanded: break
-        leaf_to_product: dict[str, list[str]] = {_l: [_l] for _l in _leaves}
-        for _l in _leaves:
-            _product: set[str] = set({_l})
-            while len(_product) < max_inputs:
-                lits_to_expand: set[str] = {x for x in _product if _is_valid(x)}
-                lits_to_add: set[str] = {y for x in lits_to_expand for y in inputs_of(x)}
-                if len(lits_to_expand) == 0: break
-                _product.update(lits_to_add)
-                _product.difference_update(lits_to_expand)
-                if len(_product) >= max_inputs: break
-            leaf_to_product[_l] = _product
-            
-        node_to_structures[node] = [Structure(
-            list({lit for leaf in _leaves for lit in leaf_to_product[leaf]}),
-            node,
-            sum((AND_GATE_T_COST * len(leaf_to_product[_l]) for _l in _leaves)),
-            list(exposed_signals), 
-            [list(leaf_to_product[_l]) for _l in _leaves]
-        )]
-    return node_to_structures
-
-def library_mapping(network: LogicNetwork, node_to_structures: dict[str, list[Structure]], **kwargs) -> dict[str, Structure]:
-    return {k: v[0] for k, v in node_to_structures.items()}
 
 def post_process(circuit: QuantumCircuit, **kwargs) -> QuantumCircuit:
     run_zx: bool = kwargs.get("run_zx", False)
@@ -156,37 +86,124 @@ def xor_block_grouping(network: LogicNetwork, **kwargs) -> QuantumCircuit:
     if plot_circuit_v: plot_circuit(circuit)
     return circuit
 
-def xor_block_extraction(network: LogicNetwork, **kwargs) -> QuantumCircuit:
-    plot_network_v: bool = kwargs.get("plot_network", True)
-    plot_circuit_v: bool = kwargs.get("plot_circuit", True)
-    verbose: bool = kwargs.get("verbose", True)
 
-    node_to_structures = cut_enumeration(network, max_inputs=2, **kwargs)
-    node_to_best_structure: dict[str, Structure] = library_mapping(network, node_to_structures, **kwargs)
-    fanins_of = lambda x: node_to_best_structure[x].leaves
+def _uniquify_cuts(cuts: list[list[str]]) -> list[list[str]]:
+    _hash = lambda x: tuple(sorted(x))
+    return list({ _hash(cut): cut for cut in cuts }.values())
 
-    data = {x: node_to_best_structure[x].to_json() for x, _ in network.gates.items()}
-    if verbose: pprint(data)
-    
-    circuit = QuantumCircuit()
-    qubits = {}
-    for _, input in enumerate(network.inputs):
-        qubits[input] = circuit.request_qubit()
-    def _mapping_rec(node: str):
-        if node in qubits: return
-        for leaf in fanins_of(node):
-            _mapping_rec(leaf)
-        target = qubits[node] = circuit.request_qubit()
-        for _p in node_to_best_structure[node].product_terms:
-            circuit.add_mcx(
-                [qubits[x] for x in _p], target, [False] * len(_p), False)
-    for po in network.outputs: _mapping_rec(po)
-    
-    if plot_network_v: plot_network(network, show_name=verbose)
-    if plot_circuit_v: plot_circuit(circuit)
+def _merge_cuts(cuts1: list[list[str]], cuts2: list[list[str]]) -> list[list[str]]:
+    return [list(set(x[:]) | set(y[:])) for x in cuts1 for y in cuts2]
+
+def _filter_cuts(cuts: list[list[str]], **kwargs) -> list[list[str]]:
+    _MAX_INT: int = 2**31 - 1
+    max_cut_size: int = kwargs.get("max_cut_size", _MAX_INT)
+    max_cut_count: int = kwargs.get("max_cut_count", _MAX_INT)
+    return [cut for cut in _uniquify_cuts(cuts) if len(cut) <= max_cut_size][:max_cut_count]
+
+def enumerate_cuts(network: LogicNetwork, **kwargs) -> dict[str, list]:
+    use_unary_and: bool = kwargs.get("use_unary_and", False)
+    node_to_cuts: dict[str, list[list[str]]] = {pi: [[pi]] for pi in network.inputs}
+    for node, gate in network.gates.items():
+        node_to_cuts[node] = [[node], gate.inputs[:]]
+        assert all(f in node_to_cuts or network.is_pi(f) for f in gate.inputs)
+        n_inputs = len(gate.inputs)
+        if not use_unary_and and gate.is_and:
+            node_to_cuts[node] = [[gate.inputs[0], gate.inputs[1]]]
+            continue
+        if n_inputs == 1: node_to_cuts[node].extend(node_to_cuts[gate.inputs[0]])
+        elif n_inputs == 2: 
+            node_to_cuts[node].extend(_merge_cuts(node_to_cuts[gate.inputs[0]], node_to_cuts[gate.inputs[1]]))
+        else: raise ValueError(f"Unsupported number of inputs: {n_inputs}")
+        node_to_cuts[node] = _filter_cuts(node_to_cuts[node], **kwargs)
+    return node_to_cuts
+
+def extract_subnetwork(network: LogicNetwork, root: str, cut: list[str]) -> LogicNetwork:
+    sub_network = LogicNetwork()
+    for node in cut: sub_network.create_pi(node)
+    def extract_rec(_n: str) -> None:
+        if sub_network.has(_n): return
+        assert network.is_gate(_n)
+        for f in network.fanins(_n): extract_rec(f)
+        sub_network.clone_gate(network.get_gate(_n))
+    extract_rec(root)
+    sub_network.create_po(root)
+    sub_network._compute_fanouts()
+    return sub_network
+
+def eval_network(network: LogicNetwork) -> dict[str, int]:
+    circuit = xor_block_grouping(network, verbose=False, run_zx=True)
+    return {"n_q": circuit.n_qubits, "n_t": circuit.num_t, "n_ands": network.n_ands}
+
+def area_oriented_mapping(network: LogicNetwork, node_to_cuts: dict[str, list]) -> dict[str, list]:
+    node_to_cost: dict[str, dict] = {}
+    for pi in network.inputs:
+        node_to_cost[pi] = {"cut": [pi], "t_cost": 0, "n_cost": 0, "qubits": set([pi])}
+    for root, cuts in node_to_cuts.items():
+        best_cut: list = None
+        best_t_cost: int = float("inf")
+        best_n_cost: int = float("inf")
+        best_qubits: set = set()
+        for cut in cuts:
+            is_valid: bool = all([node in node_to_cost for node in cut])
+            if not is_valid: continue
+            subnetwork = extract_subnetwork(network, root, cut)
+            _t_cost: float = eval_network(subnetwork)["n_t"]
+            _qubits: set = set([root])
+            for i in range(len(cut)):
+                _t_cost += node_to_cost[cut[i]]["t_cost"]
+                _qubits = _qubits.union(_qubits, node_to_cost[cut[i]]["qubits"])
+            # if _t_cost > best_t_cost: continue
+            # if _t_cost == best_t_cost and len(_qubits) > best_n_cost: continue
+            if len(_qubits) > best_n_cost: continue
+            if len(_qubits) == best_n_cost and _t_cost > best_t_cost: continue
+            best_cut, best_n_cost, best_t_cost, best_qubits = cut[:], len(_qubits), _t_cost, _qubits
+        node_to_cost[root] = {"cut": best_cut, "t_cost": best_t_cost, "n_cost": best_n_cost, "qubits": best_qubits}
+    return {node: node_to_cost[node]["cut"] for node in node_to_cost}
+
+def _collect_nodes_in_topological_order(network: LogicNetwork, root: str, cut: list[str]) -> list[str]:
+    visited: set[str] = set()
+    order: list[str] = []
+    def _post_order_rec(node: str) -> None:
+        if node in visited: return
+        if node in cut: return
+        for f in network.fanins(node):
+            _post_order_rec(f)
+        visited.add(node)
+        order.append(node)
+    _post_order_rec(root)
+    return order[:]
+
+def _retrieve_nework_rec(network: LogicNetwork, circuit: QuantumCircuit, node_to_cut: dict[str, list], node_to_qubit: dict[str, int], node: str) -> None:
+    if node in node_to_qubit: return node_to_qubit[node]
+    assert node in node_to_cut, f"Node {node} not found in cuts"
+    cut: list[str] = node_to_cut[node]
+    root_index: int = circuit.request_qubit()
+    for i, f in enumerate(cut):
+        _retrieve_nework_rec(network, circuit, node_to_cut, node_to_qubit, f)
+    gates_to_add: list[LogicGate] = [network.gates[x] for x in _collect_nodes_in_topological_order(network, node, cut)]
+    gate: LogicGate
+    is_clean: bool = True
+    for gate in gates_to_add:
+        if gate.is_buf: continue
+        elif gate.is_xor:
+            for f in gate.inputs:
+                if node_to_qubit[f] != root_index:
+                    circuit.add_cnot(node_to_qubit[f], root_index)
+        elif gate.is_and:
+            circuit.add_toffoli(node_to_qubit[gate.inputs[0]], node_to_qubit[gate.inputs[1]], root_index, clean=is_clean)
+        node_to_qubit[gate.output] = root_index
+        is_clean = False
+
+def retrieve_network(network: LogicNetwork, node_to_cut: dict[str, list]) -> QuantumCircuit:
+    circuit: QuantumCircuit = QuantumCircuit()
+    node_to_qubit: dict[str, int] = {}
+    for pi in network.inputs:
+        node_to_qubit[pi] = circuit.request_qubit()
+    for po in network.outputs:
+        _retrieve_nework_rec(network, circuit, node_to_cut, node_to_qubit, po)
     return circuit
 
-def extract(network: LogicNetwork) -> QuantumCircuit:
+def extract_simple(network: LogicNetwork) -> QuantumCircuit:
     circuit = QuantumCircuit()
     qubits = {}
     for _, input in enumerate(network.inputs):
@@ -201,3 +218,9 @@ def extract(network: LogicNetwork) -> QuantumCircuit:
             ctrl = qubits[gate.inputs[0]]
             circuit.add_cnot(ctrl, target)
     return circuit
+
+def extract_q_opt(network: LogicNetwork) -> QuantumCircuit:
+    node_to_cuts: dict[str, list] = enumerate_cuts(network)
+    node_to_cut:  dict[str, list] = area_oriented_mapping(network, node_to_cuts)
+    circuit: QuantumCircuit = retrieve_network(network, node_to_cut)
+    return post_process(circuit, run_zx=True)
