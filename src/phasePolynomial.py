@@ -19,7 +19,10 @@ def generate_xor_truth_tables(n_qubits: int):
         truth_tables.add((tuple(table), tuple(config)))
     return list(truth_tables)
 
-def synthesize_d3(d3: np.ndarray, verbose: bool = False) -> list[float]:
+def synthesize_d3(d3: np.ndarray, **kwargs) -> list[float]:
+    verbose: bool = kwargs.get("verbose", False)
+    timeout: int = kwargs.get("timeout", 10)
+    
     n_qubits: int = int(np.log2(d3.size))
     n_patterns: int = d3.size
     
@@ -30,6 +33,9 @@ def synthesize_d3(d3: np.ndarray, verbose: bool = False) -> list[float]:
         for i in range(n_vars):
             _tt, _config = A[i]
             print(f"tt: {_tt}, config: {_config}")
+    
+    gp.setParam("OutputFlag", 0)
+    gp.setParam("LogToConsole", 0)
     model = gp.Model("Phase Polynomial Synthesis")
     X_UB: int = 7
     X_LB: int = 0
@@ -52,16 +58,14 @@ def synthesize_d3(d3: np.ndarray, verbose: bool = False) -> list[float]:
             name=f"phase_{j}",
         )
     model.update()
+    model.setParam("TimeLimit", timeout)
     model.optimize()
     model.write("model.lp")
-    if model.status == GRB.OPTIMAL:
+    if model.status == GRB.OPTIMAL or model.status == GRB.TIME_LIMIT:
         solution = model.getAttr("x", x)
-        print("Optimal solution:")
-        for i in range(n_vars): print(f"x[{i}] = {solution[i]}")
-    else:
-        print("No optimal solution found.")
-        return None
-    return [solution[i] for i in range(n_vars)]
+        num_t: float = model.getAttr("ObjVal")
+        return num_t, [solution[i] for i in range(n_vars)]
+    else: return None
 
 def logic_to_unitary(network: LogicNetwork) -> np.ndarray:
     if network.n_pos != 1: raise NotImplementedError("Only single-output networks are supported.")
@@ -87,15 +91,12 @@ def logic_to_d3(network: LogicNetwork) -> np.ndarray:
         if pattern & (1 << _x): d3[x] = 4
     return d3
 
-if __name__ == "__main__":
-    from rich.pretty import pprint
-    
+if __name__ == "__main__":    
     verilog_file: str = get_benchmark("stg_small")
-    # verilog_file: str = get_benchmark("and")
     network: LogicNetwork = LogicNetwork.from_verilog(open(verilog_file).read())
-    unitary: np.ndarray = logic_to_unitary(network)
     d3: np.ndarray = logic_to_d3(network)
-    print("D3:", d3)
-    print("Unitary:")
-    pprint(unitary)
-    synthesize_d3(d3, verbose=True)
+    res = synthesize_d3(d3, verbose=False)
+    if not res: pass
+    else:
+        num_t, coeffs = res
+        print("Num T (Phase Polynomial):", num_t)

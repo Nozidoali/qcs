@@ -144,6 +144,12 @@ class LogicNetwork:
 
     def create_po(self, node: str) -> None:
         self.outputs.append(node)
+        
+    def create_and(self, n: str, f1: str, f2: str) -> None:
+        self.gates[n] = LogicGate("&", [f1, f2], n, {"p1": False, "p2": False, "p3": False})
+        
+    def create_xor(self, n: str, f1: str, f2: str) -> None:
+        self.gates[n] = LogicGate("^", [f1, f2], n, {"p1": False, "p2": False, "p3": False})
 
     def has(self, node: str) -> bool:
         return node in self.gates or node in self.inputs
@@ -157,7 +163,7 @@ class LogicNetwork:
         
     def simulate(self) -> int:
         if self.n_pis >= 5:
-            raise NotImplementedError("Simulation for more than 16 inputs is not implemented")
+            raise NotImplementedError("Simulation for more than 5 inputs is not implemented")
         mask: int = (1<<(1<<self.n_pis)) - 1
         for i, _i in enumerate(self.inputs):
             self._node_patterns[_i] = 0
