@@ -212,8 +212,8 @@ def area_oriented_mapping(network: LogicNetwork, node_to_cuts: dict[str, list]) 
         node_to_cost[root] = {"cut": best_cut, "t_cost": best_t_cost, "n_cost": best_n_cost, "qubits": best_qubits}
     return {node: node_to_cost[node]["cut"] for node in node_to_cost}
 
-def extract_q_opt(network: LogicNetwork) -> QuantumCircuit:
+def extract_q_opt(network: LogicNetwork, run_zx=True) -> QuantumCircuit:
     node_to_cuts: dict[str, list] = enumerate_cuts(network)
     node_to_cut:  dict[str, list] = area_oriented_mapping(network, node_to_cuts)
     circuit: QuantumCircuit = retrieve_network(network, node_to_cut)
-    return post_process(circuit, run_zx=True)
+    return post_process(circuit, run_zx=run_zx)

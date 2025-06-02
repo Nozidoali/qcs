@@ -145,6 +145,8 @@ class QuantumCircuit:
                 circuit.add_toffoli(gate.ctrl1, gate.ctrl2, gate.target)
             elif gate.name == "CNOT":
                 circuit.add_cnot(gate.control, gate.target)
+            elif gate.name == "NOT":
+                circuit.add_x(gate.target)
             elif gate.name == "CZ":
                 circuit.add_cz(gate.control, gate.target)
             elif gate.name == "Z":
@@ -171,3 +173,7 @@ class QuantumCircuit:
     @property
     def num_gates(self) -> int:
         return len(self.gates)
+    
+    @property
+    def num_2q(self) -> int:
+        return sum(1 for gate in self.gates if gate["name"] in ["CNOT", "CZ"])

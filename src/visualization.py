@@ -67,7 +67,7 @@ def schedule_gates(circuit: QuantumCircuit, **kwargs) -> list:
 
 def plot_circuit(circuit: QuantumCircuit, **kwargs) -> None:    
     params: dict = plot_params(circuit, **kwargs)
-    file_name: str = kwargs.get("file_name", "circuit.png")
+    file_name: str = kwargs.get("file_name", None)
     
     _, ax = plt.subplots(figsize=params["figsize"], dpi=params["dpi"])
     ax.axis("off")
@@ -108,5 +108,8 @@ def plot_circuit(circuit: QuantumCircuit, **kwargs) -> None:
             l = {"X": "X", "S": "S", "HAD": "H"}[n]
             text(t, coord(g, "target"), l, c='white')
 
-    plt.savefig(file_name)
-    plt.close()
+    if file_name is not None:
+        plt.savefig(file_name)
+        plt.close()
+    else:
+        return plt
