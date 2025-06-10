@@ -1,6 +1,6 @@
 {
     "name": "gf_mult9",
     "n_ands": 81,
-    "n_t": 324,
-    "n_qubits": 188
+    "n_t": 238,
+    "n_qubits": 22
 }
