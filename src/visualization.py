@@ -19,36 +19,7 @@ def plot_network(network: LogicNetwork, **kwargs) -> None:
             graph.add_edge(input, node)
     graph.layout(prog="dot")
     graph.draw(file_name)
-    
-def plot_params(circuit: QuantumCircuit, **kwargs) -> dict:
-    params: dict = {}
-    params["X_MARGIN"] = kwargs.get("x_margin", 2)
-    params["Y_MARGIN"] = kwargs.get("y_margin", 1)
-    params["W"] = len(circuit.gates) + 2 * params["X_MARGIN"]
-    params["H"] = circuit.n_qubits   + 2 * params["Y_MARGIN"]
-    params["dpi"] = kwargs.get("dpi", 100)
-    params["factor"] = kwargs.get("factor", 0.2)
-    params["figsize"] = (params["W"] * params["factor"], params["H"] * params["factor"])
-    params["fontsize"] = kwargs.get("font_size", 8)
-    
-    """
-        b  blue          m  magenta
-        g  green         y  yellow
-        r  red           k  black
-        c  cyan          w  white
-    """
-    gate_colors: dict = {
-        "CNOT": "b",
-        "Tof":  "g",
-        "T":    "r",
-        "Tdg":  "r",
-        "X":    "b",
-        "S":    "m",
-        "HAD":  "g"
-    }
-    params["gate_colors"] = gate_colors
-    return params
-    
+
 def schedule_gates(circuit: QuantumCircuit, **kwargs) -> list:
     remove_overlap: bool = kwargs.get("remove_overlap", True)
     
@@ -65,51 +36,44 @@ def schedule_gates(circuit: QuantumCircuit, **kwargs) -> list:
         gate_loc[i] = max_level
     return gate_loc
 
-def plot_circuit(circuit: QuantumCircuit, **kwargs) -> None:    
-    params: dict = plot_params(circuit, **kwargs)
-    file_name: str = kwargs.get("file_name", None)
+
+def plot_circuit(circ, fn=None):
+    xc, yc, xm, ym = .4, .5, .25, .25
+    ms = 16
+    colors = {"CNOT":"b","Tof":"g","T":"r","Tdg":"r","X":"b","S":"m","HAD":"g"}
     
-    _, ax = plt.subplots(figsize=params["figsize"], dpi=params["dpi"])
-    ax.axis("off")
-
-    y = {q: q+params["Y_MARGIN"] for q in range(circuit.n_qubits)}
-    blend = mtrans.blended_transform_factory(ax.transAxes, ax.transData)
-
-    [ax.axhline(yy, ls='-', lw=1, c='gray') for yy in y.values()]
-    [ax.text(0, yy, f"q{q}", ha='right', va='center', fontsize=params["fontsize"], transform=blend, clip_on=False) for q, yy in y.items()]
+    gloc = schedule_gates(circ)
+    cols = max(gloc.values()) + 1
+    x = {i: c * xc for i, c in gloc.items()}
+    y = {q: (circ.n_qubits - 1 - q) * yc for q in range(circ.n_qubits)}
     
-    x_of = {k: v + params["X_MARGIN"] for k, v in schedule_gates(circuit).items()}
-
-    dot    = lambda x, yy, c='b'    : ax.plot([x], [yy], f'{c}o')
-    square = lambda x, yy, c='b'    : ax.plot([x], [yy], f'{c}s', ms=10)
-    xmark  = lambda x, yy, c='b'    : ax.plot([x], [yy], f'{c}x')
-    vline  = lambda x, y1, y2, c='b': ax.plot([x, x], [y1, y2],  c)
-    text   = lambda x, y, s, c='b'  : ax.text(x, y, s, ha='center', va='center', fontsize=10, color=c)
-    coord  = lambda g, k: y[g[k]] 
-
-    for i, g in enumerate(circuit.gates):
-        t = x_of[i]
-        n = g["name"]
+    w, h = cols * xc + 2 * xm, circ.n_qubits * yc + 2 * ym
+    fig, ax = plt.subplots(figsize=(w, h))
+    ax.set_xlim(-xm, cols * xc + xm), ax.set_ylim(-ym, circ.n_qubits * yc + ym), ax.axis("off")
+    
+    tr = mtrans.blended_transform_factory(ax.transAxes, ax.transData)
+    [ax.axhline(v, lw=1, c="gray") for v in y.values()]
+    [ax.text(-.02, v, f"q{k}", ha="right", va="center", transform=tr, fontsize=8) for k, v in y.items()]
+    
+    dot    = lambda p, q, c='b': ax.plot([p], [q], f'{c}o')
+    square = lambda p, q, c='b': ax.plot([p], [q], f'{c}s', ms=ms)
+    xmark  = lambda p, q, c='b': ax.plot([p], [q], f'{c}x')
+    vline  = lambda p, q1, q2, c='b': ax.plot([p, p], [q1, q2], c)
+    text   = lambda p, q, s, c='k': ax.text(p, q, s, ha="center", va="center", fontsize=10, color=c)
+    
+    for i, g in enumerate(circ.gates):
+        p, n = x[i], g["name"]
         if n == "CNOT":
-            vline(t, coord(g, "ctrl"), coord(g, "target"))
-            dot  (t, coord(g, "ctrl"))
-            xmark(t, coord(g, "target"))
+            vline(p, y[g["ctrl"]], y[g["target"]]); dot(p, y[g["ctrl"]]); xmark(p, y[g["target"]])
         elif n == "Tof":
-            for c in ("ctrl1", "ctrl2"):
-                vline(t, coord(g, c), coord(g, "target"))
-                dot  (t, coord(g, c))
-            xmark(t, coord(g, "target"))
+            tgt = y[g["target"]]
+            for c in ("ctrl1", "ctrl2"): vline(p, y[g[c]], tgt); dot(p, y[g[c]])
+            xmark(p, tgt)
         elif n in {"T", "Tdg"}:
-            square(t, coord(g, "target"), c=params["gate_colors"][n])
-            l = {"T": "T", "Tdg": "T-"}[n]
-            text(t, coord(g, "target"), l, c='white')
+            qt = y[g["target"]]; square(p, qt, colors[n]); text(p, qt, "+" if n == "T" else "-", "white")
         elif n in {"X", "S", "HAD"}:
-            square(t, coord(g, "target"), c=params["gate_colors"][n])
-            l = {"X": "X", "S": "S", "HAD": "H"}[n]
-            text(t, coord(g, "target"), l, c='white')
-
-    if file_name is not None:
-        plt.savefig(file_name)
-        plt.close()
-    else:
-        return plt
+            qt = y[g["target"]]; square(p, qt, colors[n]); text(p, qt, {"X":"X","S":"S","HAD":"H"}[n], "white")
+        else:
+            qt = y.get(g.get("target", 0), 0); square(p, qt, 'k'); text(p, qt, n, 'white')
+            
+    (plt.savefig(fn, bbox_inches="tight") if fn else plt.show()) and plt.close(fig)

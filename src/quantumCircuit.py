@@ -1,10 +1,89 @@
 def is_unique(lst: list) -> bool:
     return len(lst) == len(set(lst))
 
+def decompose_ccz_clean_ancilla(c1: int, c2: int, target: int) -> list[dict]:
+    gates = []
+
+    gates.append({"name": "T", "target": target})
+    gates.append({"name": "CNOT", "ctrl": c1, "target": target})
+    gates.append({"name": "CNOT", "ctrl": c2, "target": target})
+    gates.append({"name": "CNOT", "ctrl": target, "target": c2})
+    gates.append({"name": "CNOT", "ctrl": target, "target": c1})
+    
+    gates.append({"name": "Tdg", "target": c1})
+    gates.append({"name": "Tdg", "target": c2})
+    
+    gates.append({"name": "T", "target": target})
+    
+    gates.append({"name": "CNOT", "ctrl": target, "target": c1})
+    gates.append({"name": "CNOT", "ctrl": target, "target": c2})
+        
+    return gates
+
+def decompose_ccz_dirty_ancilla(c1: int, c2: int, target: int) -> list[dict]:
+    gates = []
+    gates.append({"name": "T",    "target": c1})
+    gates.append({"name": "T",    "target": c2})
+    gates.append({"name": "T",    "target": target})
+    
+    gates.append({"name": "CNOT", "ctrl":   c2, "target": c1})
+    gates.append({"name": "Tdg",  "target": c1})
+
+    gates.append({"name": "CNOT", "ctrl":   target, "target": c1})
+    gates.append({"name": "T",    "target": c1})
+    gates.append({"name": "CNOT", "ctrl":   c2, "target": c1})
+    gates.append({"name": "Tdg",  "target": c1})
+
+    gates.append({"name": "CNOT", "ctrl":   target, "target": c1})
+    gates.append({"name": "CNOT", "ctrl":   target, "target": c2})
+    gates.append({"name": "Tdg",  "target": c2})
+    gates.append({"name": "CNOT", "ctrl":   target, "target": c2})
+    return gates
+
+def decompose_toffoli(c1: int, c2: int, target: int, clean: bool = False) -> list[dict]:
+    gates = []
+    gates.append({"name": "HAD", "target": target})
+    if clean:
+        gates.extend(decompose_ccz_clean_ancilla(c1, c2, target))
+    else:
+        gates.extend(decompose_ccz_dirty_ancilla(c1, c2, target))
+    gates.append({"name": "HAD", "target": target})
+    return gates
+    
 class QuantumCircuit:
     def __init__(self):
         self.n_qubits: int = 0
         self.gates: list = []
+        
+    def to_basic_gates(self) -> 'QuantumCircuit':
+        _circuit = QuantumCircuit()
+        _circuit.n_qubits = self.n_qubits
+        for gate in self.gates:
+            assert "name" in gate, f"Gate {gate} does not have a 'name' key"
+            if gate["name"] == "Tof":
+                _circuit.gates.extend(decompose_toffoli(gate["ctrl1"], gate["ctrl2"], gate["target"]))
+            else:
+                _circuit.add_gate(gate)
+        return _circuit.cleanup_dangling()
+    
+    def cleanup_dangling(self) -> 'QuantumCircuit':
+        _circuit = QuantumCircuit()
+        _circuit.request_qubits(self.n_qubits)
+        is_had: dict[int, bool] = {i: False for i in range(self.n_qubits)}
+        for i, gate in enumerate(self.gates):
+            if gate["name"] == "HAD":
+                is_had[gate["target"]] = not is_had[gate["target"]]
+            else:
+                for j in QuantumCircuit.deps_of(gate):
+                    if is_had[j]:
+                        _circuit.add_gate({"name": "HAD", "target": j})
+                        is_had[j] = False
+                _circuit.add_gate(gate)
+        for j in range(self.n_qubits):
+            if is_had[j]:
+                _circuit.add_gate({"name": "HAD", "target": j})
+                is_had[j] = False
+        return _circuit
 
     def request_qubit(self) -> int:
         self.n_qubits += 1
@@ -13,27 +92,11 @@ class QuantumCircuit:
     def request_qubits(self, n: int) -> list[int]:
         return [self.request_qubit() for _ in range(n)]
 
-    def add_toffoli(
-        self, c1: int, c2: int, target: int, p1: bool = False, p2: bool = False, clean: bool = False,
-    ) -> None:
+    def add_toffoli(self, c1: int, c2: int, target: int, p1: bool = False, p2: bool = False) -> None:
         assert is_unique([c1, c2, target]), f"Control and target qubits must be unique, got {c1}, {c2}, {target}"
         if p1: self.add_x(c1)
-        if p2: self.add_x(c2)
-        if clean:
-            self.add_h(target)
-            self.add_t(target)
-            self.add_cnot(c1, target)
-            self.add_cnot(c2, target)
-            self.add_cnot(target, c2)
-            self.add_cnot(target, c1)
-            self.add_tdg(c1)
-            self.add_tdg(c2)
-            self.add_t(target)
-            self.add_cnot(target, c1)
-            self.add_cnot(target, c2)
-            self.add_h(target)
-            self.add_s(c1)        
-        else: self.gates.append({"name": "Tof", "ctrl1": c1, "ctrl2": c2, "target": target})
+        if p2: self.add_x(c2)   
+        self.gates.append({"name": "Tof", "ctrl1": c1, "ctrl2": c2, "target": target})
         if p1: self.add_x(c1)
         if p2: self.add_x(c2)
         
@@ -132,15 +195,17 @@ class QuantumCircuit:
         return qasm_str
     
     @staticmethod
-    def from_qasm(qasm: str) -> 'QuantumCircuit':
+    def from_zx_circuit(qc) -> 'QuantumCircuit':
         import pyzx as zx
-        qc = zx.Circuit.from_qasm(qasm)
-        
         circuit = QuantumCircuit()
         circuit.request_qubits(qc.qubits)
         for gate in qc.gates:
             if gate.name == "Tof":
                 circuit.add_toffoli(gate.ctrl1, gate.ctrl2, gate.target)
+            elif gate.name == "CCZ":
+                circuit.add_h(gate.target)
+                circuit.add_toffoli(gate.ctrl1, gate.ctrl2, gate.target)
+                circuit.add_h(gate.target)
             elif gate.name == "CNOT":
                 circuit.add_cnot(gate.control, gate.target)
             elif gate.name == "NOT":
@@ -160,9 +225,21 @@ class QuantumCircuit:
             elif gate.name == "Tdg":
                 circuit.add_tdg(gate.target)
             else:
-                raise NotImplementedError(f"Unsupported gate: {gate.name}")
+                raise NotImplementedError(f"Unsupported gate: \"{gate.name}\"")
         
         return circuit
+    
+    @staticmethod
+    def from_file(filename: str) -> 'QuantumCircuit':
+        import pyzx as zx
+        qc = zx.Circuit.load(filename)
+        return QuantumCircuit.from_zx_circuit(qc)
+    
+    @staticmethod
+    def from_qasm(qasm: str) -> 'QuantumCircuit':
+        import pyzx as zx
+        qc = zx.Circuit.from_qasm(qasm)
+        return QuantumCircuit.from_zx_circuit(qc)
 
     @property
     def num_t(self) -> int:
