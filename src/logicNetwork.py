@@ -1,3 +1,5 @@
+import queue, random
+
 class LogicGate:
     def __init__(self, gate_type: str, inputs: list[str], output: str, data = {}):
         self.gate_type: str = gate_type
@@ -191,6 +193,27 @@ class LogicNetwork:
         if node not in self._node_patterns:
             raise ValueError(f"Node {node} not found in the network")
         return self._node_patterns[node]
+
+def random_network(n: int, n_gates: int) -> LogicNetwork:
+    network = LogicNetwork()
+    for _ in range(n): network.create_pi(f"pi{_}")
+    and_queue: set[tuple[int, int]] = set()
+    xor_queue: queue.Queue = queue.Queue()
+    while len(and_queue) < n_gates:
+        n1, n2 = random.sample(range(n), 2)
+        if (n1, n2) not in and_queue and (n2, n1) not in and_queue:
+            network.create_and(f"n{len(and_queue)}", f"pi{n1}", f"pi{n2}")
+            xor_queue.put(f"n{len(and_queue)}")
+            and_queue.add((n1, n2))
+    idx: int = len(and_queue)
+    while xor_queue.qsize() > 1:
+        n1, n2 = xor_queue.get(), xor_queue.get()
+        network.create_xor(f"n{idx}", n1, n2)
+        xor_queue.put(f"n{idx}")
+        idx += 1
+    network.create_po(xor_queue.get())
+    network._compute_fanouts()
+    return network
 
 if __name__ == "__main__":
     import os

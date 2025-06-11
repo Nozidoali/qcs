@@ -2,7 +2,6 @@ import itertools
 import numpy as np
 import gurobipy as gp
 from gurobipy import GRB
-from config import *
 from logicNetwork import LogicNetwork
 
 def generate_xor_truth_tables(n_qubits: int):
@@ -90,13 +89,3 @@ def logic_to_d3(network: LogicNetwork) -> np.ndarray:
         x = (_x << 1) | 1
         if pattern & (1 << _x): d3[x] = 4
     return d3
-
-if __name__ == "__main__":    
-    verilog_file: str = get_benchmark("stg_small")
-    network: LogicNetwork = LogicNetwork.from_verilog(open(verilog_file).read())
-    d3: np.ndarray = logic_to_d3(network)
-    res = synthesize_d3(d3, verbose=False)
-    if not res: pass
-    else:
-        num_t, coeffs = res
-        print("Num T (Phase Polynomial):", num_t)

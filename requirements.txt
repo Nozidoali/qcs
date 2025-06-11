@@ -1,7 +1,9 @@
 rich
 
 pyzx
+
 gurobipy
 matplotlib
+pandas
 
 pygraphviz
