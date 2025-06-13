@@ -4,16 +4,15 @@ def is_unique(lst: list) -> bool:
 def decompose_ccz_clean_ancilla(c1: int, c2: int, target: int) -> list[dict]:
     gates = []
 
-    gates.append({"name": "T", "target": target})
+    gates.append({"name": "T",    "target": target})
     gates.append({"name": "CNOT", "ctrl": c1, "target": target})
     gates.append({"name": "CNOT", "ctrl": c2, "target": target})
     gates.append({"name": "CNOT", "ctrl": target, "target": c2})
     gates.append({"name": "CNOT", "ctrl": target, "target": c1})
     
-    gates.append({"name": "Tdg", "target": c1})
-    gates.append({"name": "Tdg", "target": c2})
-    
-    gates.append({"name": "T", "target": target})
+    gates.append({"name": "Tdg",  "target": c1})
+    gates.append({"name": "Tdg",  "target": c2})
+    gates.append({"name": "T",    "target": target})
     
     gates.append({"name": "CNOT", "ctrl": target, "target": c1})
     gates.append({"name": "CNOT", "ctrl": target, "target": c2})
@@ -49,7 +48,7 @@ def decompose_toffoli(c1: int, c2: int, target: int, clean: bool = False) -> lis
         gates.extend(decompose_ccz_dirty_ancilla(c1, c2, target))
     gates.append({"name": "HAD", "target": target})
     return gates
-    
+
 class QuantumCircuit:
     def __init__(self):
         self.n_qubits: int = 0
@@ -65,6 +64,28 @@ class QuantumCircuit:
             else:
                 _circuit.add_gate(gate)
         return _circuit.cleanup_dangling()
+    
+    def hadamard_gadgetization(self) -> 'QuantumCircuit':
+        _circuit = QuantumCircuit()
+        _circuit.n_qubits = self.n_qubits
+        flag = False
+        last = max((i for i, gate in enumerate(self.gates) if gate["name"] == "T"), default=0)
+        for i, gate in enumerate(self.gates):
+            if gate["name"] == "T": flag = True
+            if gate["name"] == "HAD" and flag and i < last:
+                target = gate["target"]
+                _anc = _circuit.request_qubit()
+                _circuit.add_gate({"name": "HAD", "target": _anc})
+                _circuit.add_gate({"name": "S", "target": _anc})
+                _circuit.add_gate({"name": "S", "target": target})
+                _circuit.add_gate({"name": "CNOT", "ctrl": target, "target": _anc})
+                _circuit.add_gate({"name": "S", "target": target})
+                _circuit.add_gate({"name": "Z", "target": target})
+                _circuit.add_gate({"name": "CNOT", "ctrl": _anc, "target": target})
+                _circuit.add_gate({"name": "CNOT", "ctrl": target, "target": _anc})
+            else:
+                _circuit.add_gate(gate)
+        return _circuit
     
     def cleanup_dangling(self) -> 'QuantumCircuit':
         _circuit = QuantumCircuit()
