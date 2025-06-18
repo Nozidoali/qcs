@@ -345,3 +345,77 @@ class PhasePolynomial:
             for j in reversed(indices):
                 qc.add_cnot(j, pivot)
         return qc
+
+def to_remove_indices(table: list[BitVector]) -> list[int]:
+    seen = {}
+    to_remove = []
+    for i, bv in enumerate(table):
+        vec = tuple(bv.get_integer_vec())
+        first_one = bv.get_first_one()
+        if not bv.get(first_one):
+            to_remove.append(i)
+        elif vec in seen:
+            to_remove.append(seen[vec])
+            to_remove.append(i)
+            del seen[vec]
+        else:
+            seen[vec] = i
+    return to_remove
+
+def to_remove(table: list[BitVector]) -> list[int]:
+    seen = {}
+    to_remove = []
+
+    for i, vec in enumerate(table):
+        vec_int = vec.get_integer_vec()
+        first_one = vec.get_first_one()
+
+        if not vec.get(first_one):
+            to_remove.append(i)
+        elif tuple(vec_int) in seen:
+            to_remove.append(seen[tuple(vec_int)])
+            to_remove.append(i)
+            del seen[tuple(vec_int)]
+        else:
+            seen[tuple(vec_int)] = i
+
+    return to_remove
+
+def proper(table: list[BitVector]) -> list[BitVector]:
+    seen: dict[tuple[bool, ...], int] = {}
+    to_remove: list[int] = []
+    for i, bv in enumerate(table):
+        col: tuple[bool, ...] = tuple(bv.get_boolean_vec())
+        first_one: int = bv.get_first_one()
+        if not bv.get(first_one):
+            to_remove.append(i)
+        elif col in seen:
+            to_remove.append(seen[col])
+            to_remove.append(i)
+            del seen[col]
+        else:
+            seen[col] = i
+    to_remove = sorted(set(to_remove), reverse=True)
+    for i in to_remove:
+        table.pop(i)
+    return table
+
+
+def kernel(matrix: list[BitVector], augmented_matrix: list[BitVector], pivots: dict[int, int]) -> BitVector | None:
+    for i in range(len(matrix)):
+        if i in pivots:
+            continue
+        for j in list(pivots):
+            if matrix[i].get(pivots[j]):
+                matrix[i].xor(matrix[j])
+                augmented_matrix[i].xor(augmented_matrix[j])
+        index: int = matrix[i].get_first_one()
+        if matrix[i].get(index):
+            for j in pivots:
+                if matrix[j].get(index):
+                    matrix[j].xor(matrix[i])
+                    augmented_matrix[j].xor(augmented_matrix[i])
+            pivots[i] = index
+        else:
+            return copy.deepcopy(augmented_matrix[i])
+    return None

@@ -7,6 +7,249 @@ from pathlib import Path
 from cliffordAlgebra import *
 from quantumCircuit import *
 
+
+def fast_todd(table, nb_qubits):
+    """
+    FastTODD algorithm for phase polynomial optimization.
+    """
+    table = [copy.deepcopy(bv) for bv in table]
+
+    while True:
+        table = tohpe(table, nb_qubits)
+
+        # Build extended matrix for kernel computation
+        matrix = [copy.deepcopy(bv) for bv in table]
+        for i in range(len(matrix)):
+            t_vec = matrix[i].get_boolean_vec()[:nb_qubits]
+            extended = []
+            for _ in range(nb_qubits):
+                if t_vec and t_vec.pop(0):
+                    extended += t_vec.copy()
+                else:
+                    extended += [False] * len(t_vec)
+            matrix[i].extend_vec(extended, nb_qubits)
+
+        pivots = {}
+        augmented = []
+        for i in range(len(table)):
+            bv = BitVector(len(table))
+            bv.xor_bit(i)
+            augmented.append(bv)
+
+        kernel(matrix, augmented, pivots)
+        pivots = {v: k for k, v in pivots.items()}
+        # Use tuple for hashable keys
+        row_map = {tuple(bv.get_integer_vec()): i for i, bv in enumerate(table)}
+
+        max_score = 0
+        max_z, max_y = None, None
+        for i in range(len(table)):
+            for j in range(i + 1, len(table)):
+                z = copy.deepcopy(table[i])
+                z.xor(table[j])
+                z_vec = z.get_boolean_vec()
+
+                r_mat, r_aug = [], []
+                for k in range(nb_qubits):
+                    col = BitVector(len(matrix[0]))
+                    a_col = BitVector(len(augmented[0]))
+                    idx = 0
+                    for a in reversed(range(nb_qubits)):
+                        for b in range(a):
+                            if (a == k and z_vec[b]) or (b == k and z_vec[a]):
+                                col.xor_bit(nb_qubits + idx)
+                                if nb_qubits + idx in pivots:
+                                    col.xor(matrix[pivots[nb_qubits + idx]])
+                                    a_col.xor(augmented[pivots[nb_qubits + idx]])
+                            idx += 1
+                    r_mat.append(col)
+                    r_aug.append(a_col)
+
+                # Last column for quadratic terms
+                col = BitVector(len(matrix[0]))
+                a_col = BitVector(len(augmented[0]))
+                idx = 0
+                for a in reversed(range(nb_qubits)):
+                    for b in range(a):
+                        if z_vec[a] and z_vec[b]:
+                            col.xor_bit(nb_qubits + idx)
+                            if nb_qubits + idx in pivots:
+                                col.xor(matrix[pivots[nb_qubits + idx]])
+                                a_col.xor(augmented[pivots[nb_qubits + idx]])
+                        idx += 1
+                    if z_vec[a]:
+                        col.xor_bit(a)
+                        if a in pivots:
+                            col.xor(matrix[pivots[a]])
+                            a_col.xor(augmented[pivots[a]])
+                r_mat.append(col)
+                r_aug.append(a_col)
+
+                # Row reduction
+                for k in range(len(r_mat)):
+                    idx = r_mat[k].get_first_one()
+                    if r_mat[k].get(idx):
+                        pivot = copy.deepcopy(r_mat[k])
+                        aug_pivot = copy.deepcopy(r_aug[k])
+                        for l in range(k + 1, len(r_mat)):
+                            if r_mat[l].get(idx):
+                                r_mat[l].xor(pivot)
+                                r_aug[l].xor(aug_pivot)
+                    elif r_aug[k].get(i) ^ r_aug[k].get(j):
+                        score = 0
+                        y = copy.deepcopy(r_aug[k])
+                        for l in range(len(table)):
+                            if y.get(l):
+                                table[l].xor(z)
+                                key = tuple(table[l].get_integer_vec())
+                                if key in row_map and not y.get(row_map[key]):
+                                    score += 2
+                                table[l].xor(z)
+                        if y.popcount() % 2 == 1:
+                            key = tuple(z.get_integer_vec())
+                            score += 1 if key in row_map else -1
+                        if score > max_score:
+                            max_score = score
+                            max_y = y
+                            max_z = copy.deepcopy(z)
+
+        if max_score == 0:
+            break
+
+        y, z = max_y, max_z
+        for i in range(len(table)):
+            if y.get(i):
+                table[i].xor(z)
+        if y.popcount() % 2 == 1:
+            table.append(z)
+        table = proper(table)
+
+    return table
+
+def tohpe(table: list['BitVector'], nb_qubits: int) -> list['BitVector']:
+    """
+    Simplified and commented version of TOHPE algorithm.
+    Attempts to reduce the number of phase polynomial terms.
+    """
+    def clear_column(i: int, matrix: list['BitVector'], augmented: list['BitVector'], pivots: dict[int, int]) -> None:
+        # Remove column i from pivots and clear it from matrix and augmented
+        if i not in pivots:
+            return
+        val = pivots.pop(i)
+        if not augmented[i].get(i):
+            for j in range(len(matrix)):
+                if augmented[j].get(i):
+                    pivots[j] = val
+                    matrix[i], matrix[j] = copy.deepcopy(matrix[j]), copy.deepcopy(matrix[i])
+                    augmented[i], augmented[j] = copy.deepcopy(augmented[j]), copy.deepcopy(augmented[i])
+                    break
+        col, aug_col = copy.deepcopy(matrix[i]), copy.deepcopy(augmented[i])
+        for j in range(len(matrix)):
+            if j != i and augmented[j].get(i):
+                matrix[j].xor(col)
+                augmented[j].xor(aug_col)
+
+
+    # Prepare extended table for kernel computation
+    ext_table = [copy.deepcopy(bv) for bv in table]
+    for i, row in enumerate(table):
+        t_vec = row.get_boolean_vec()[:nb_qubits]
+        ext = []
+        for _ in range(nb_qubits):
+            ext += t_vec.copy() if t_vec and t_vec.pop(0) else [False] * len(t_vec)
+        ext_table[i].extend_vec(ext, nb_qubits)
+
+    pivots: dict[int, int] = {}
+    augmented = [BitVector(len(table)) for _ in table]
+    for i, e in enumerate(augmented):
+        e.xor_bit(i)
+
+    while True:
+        y = kernel(ext_table, augmented, pivots)
+        if y is None:
+            break
+
+        # Score possible reductions
+        score_map = {}
+        parity = (y.popcount() & 1) == 1
+        for i, row in enumerate(table):
+            key = tuple(row.get_integer_vec())
+            if (parity and not y.get(i)) or (not parity and y.get(i)):
+                score_map[key] = 1
+
+        for i in range(len(table)):
+            if not y.get(i):
+                continue
+            for j in range(len(table)):
+                if y.get(j):
+                    continue
+                z = copy.deepcopy(table[i])
+                z.xor(table[j])
+                key = tuple(z.get_integer_vec())
+                score_map[key] = score_map.get(key, 0) + 2
+
+        # Find best reduction
+        best_key = None
+        best_val = 0
+        for k, v in score_map.items():
+            if v > best_val or (v == best_val and (best_key is None or k < best_key)):
+                best_key, best_val = k, v
+        if best_val <= 0:
+            break
+
+        z = BitVector.from_integer_vec(list(best_key))
+        to_update = y.get_boolean_vec()[:len(table)]
+
+        # If y has odd parity, append new row to all tables
+        if y.popcount() & 1:
+            new_len = len(table[0].bits)
+            table.append(BitVector(new_len))
+            ext_table.append(BitVector(len(ext_table[0].bits)))
+            e = BitVector(len(table))
+            e.xor_bit(len(augmented))
+            augmented.append(e)
+            to_update.append(True)
+
+        # Apply reduction
+        affected = [idx for idx, f in enumerate(to_update) if f]
+        for idx in affected:
+            table[idx].xor(z)
+
+        # Remove duplicate or zero rows, keep tables in sync
+        remove_idxs = sorted(to_remove(table), reverse=True)
+        for idx in remove_idxs:
+            clear_column(idx, ext_table, augmented, pivots)
+            table.pop(idx)
+            ext_table.pop(idx)
+            augmented.pop(idx)
+            to_update.pop(idx)
+        # Truncate augmented rows to match table length
+        for row in augmented:
+            row.bits = row.bits[:len(table)]
+
+        # Update ext_table and augmented for affected rows
+        for idx in affected:
+            if idx >= len(table):  # skip if row was removed
+                continue
+            clear_column(idx, ext_table, augmented, pivots)
+            ext_table[idx] = copy.deepcopy(table[idx])
+            e = BitVector(len(table))
+            e.xor_bit(idx)
+            augmented[idx] = e
+            t_vec = table[idx].get_boolean_vec()[:nb_qubits]
+            ext = []
+            for _ in range(nb_qubits):
+                ext += t_vec.copy() if t_vec and t_vec.pop(0) else [False] * len(t_vec)
+            ext_table[idx].extend_vec(ext, nb_qubits)
+
+        # Ensure ext_table and table have the same number of rows
+        while len(ext_table) < len(table):
+            ext_table.append(BitVector(len(ext_table[0].bits)))
+        while len(ext_table) > len(table):
+            ext_table.pop()
+
+    return table
+
 class SlicedCircuit:
     def __init__(self, nb_qubits):
         self.nb_qubits = nb_qubits
@@ -202,45 +445,6 @@ def internal_h_opt(c_in: QuantumCircuit) -> QuantumCircuit:
     c.append(tab.to_circ(inverse=True))
     return c
 
-def proper(table):
-    seen = {}
-    to_remove = []
-    for i, bv in enumerate(table):
-        col = tuple(bv.get_boolean_vec())
-        first_one = bv.get_first_one()
-        if not bv.get(first_one):
-            to_remove.append(i)
-        elif col in seen:
-            to_remove.append(seen[col])
-            to_remove.append(i)
-            del seen[col]
-        else:
-            seen[col] = i
-    to_remove = sorted(set(to_remove), reverse=True)
-    for i in to_remove:
-        table.pop(i)
-    return table
-
-
-def kernel(matrix, augmented_matrix, pivots):
-    for i in range(len(matrix)):
-        if i in pivots:
-            continue
-        for j in list(pivots):
-            if matrix[i].get(pivots[j]):
-                matrix[i].xor(matrix[j])
-                augmented_matrix[i].xor(augmented_matrix[j])
-        index = matrix[i].get_first_one()
-        if matrix[i].get(index):
-            for j in pivots:
-                if matrix[j].get(index):
-                    matrix[j].xor(matrix[i])
-                    augmented_matrix[j].xor(augmented_matrix[i])
-            pivots[i] = index
-        else:
-            return copy.deepcopy(augmented_matrix[i])
-    return None
-
 def diagonalize_pauli_rotation(tab, col):
     if any(x.get(col) for x in tab.x):
         pivot = next(i for i, x in enumerate(tab.x) if x.get(col))
@@ -252,7 +456,6 @@ def diagonalize_pauli_rotation(tab, col):
         tab.append_h(pivot)
         return True
     return False
-
 
 def diagonalize_tof(tab, cols, h_gate):
     vec = []
@@ -329,301 +532,8 @@ def rank_vector(c_in):
             raise NotImplementedError(f"Operator not implemented: {gate}")
     return vec
 
-def fast_todd(table, nb_qubits):
-    """
-    FastTODD algorithm for phase polynomial optimization.
-    """
-    table = [copy.deepcopy(bv) for bv in table]
-
-    while True:
-        table = tohpe(table, nb_qubits)
-
-        # Build extended matrix for kernel computation
-        matrix = [copy.deepcopy(bv) for bv in table]
-        for i in range(len(matrix)):
-            t_vec = matrix[i].get_boolean_vec()[:nb_qubits]
-            extended = []
-            for _ in range(nb_qubits):
-                if t_vec and t_vec.pop(0):
-                    extended += t_vec.copy()
-                else:
-                    extended += [False] * len(t_vec)
-            matrix[i].extend_vec(extended, nb_qubits)
-
-        pivots = {}
-        augmented = []
-        for i in range(len(table)):
-            bv = BitVector(len(table))
-            bv.xor_bit(i)
-            augmented.append(bv)
-
-        kernel(matrix, augmented, pivots)
-        pivots = {v: k for k, v in pivots.items()}
-        # Use tuple for hashable keys
-        row_map = {tuple(bv.get_integer_vec()): i for i, bv in enumerate(table)}
-
-        max_score = 0
-        max_z, max_y = None, None
-        for i in range(len(table)):
-            for j in range(i + 1, len(table)):
-                z = copy.deepcopy(table[i])
-                z.xor(table[j])
-                z_vec = z.get_boolean_vec()
-
-                r_mat, r_aug = [], []
-                for k in range(nb_qubits):
-                    col = BitVector(len(matrix[0]))
-                    a_col = BitVector(len(augmented[0]))
-                    idx = 0
-                    for a in reversed(range(nb_qubits)):
-                        for b in range(a):
-                            if (a == k and z_vec[b]) or (b == k and z_vec[a]):
-                                col.xor_bit(nb_qubits + idx)
-                                if nb_qubits + idx in pivots:
-                                    col.xor(matrix[pivots[nb_qubits + idx]])
-                                    a_col.xor(augmented[pivots[nb_qubits + idx]])
-                            idx += 1
-                    r_mat.append(col)
-                    r_aug.append(a_col)
-
-                # Last column for quadratic terms
-                col = BitVector(len(matrix[0]))
-                a_col = BitVector(len(augmented[0]))
-                idx = 0
-                for a in reversed(range(nb_qubits)):
-                    for b in range(a):
-                        if z_vec[a] and z_vec[b]:
-                            col.xor_bit(nb_qubits + idx)
-                            if nb_qubits + idx in pivots:
-                                col.xor(matrix[pivots[nb_qubits + idx]])
-                                a_col.xor(augmented[pivots[nb_qubits + idx]])
-                        idx += 1
-                    if z_vec[a]:
-                        col.xor_bit(a)
-                        if a in pivots:
-                            col.xor(matrix[pivots[a]])
-                            a_col.xor(augmented[pivots[a]])
-                r_mat.append(col)
-                r_aug.append(a_col)
-
-                # Row reduction
-                for k in range(len(r_mat)):
-                    idx = r_mat[k].get_first_one()
-                    if r_mat[k].get(idx):
-                        pivot = copy.deepcopy(r_mat[k])
-                        aug_pivot = copy.deepcopy(r_aug[k])
-                        for l in range(k + 1, len(r_mat)):
-                            if r_mat[l].get(idx):
-                                r_mat[l].xor(pivot)
-                                r_aug[l].xor(aug_pivot)
-                    elif r_aug[k].get(i) ^ r_aug[k].get(j):
-                        score = 0
-                        y = copy.deepcopy(r_aug[k])
-                        for l in range(len(table)):
-                            if y.get(l):
-                                table[l].xor(z)
-                                key = tuple(table[l].get_integer_vec())
-                                if key in row_map and not y.get(row_map[key]):
-                                    score += 2
-                                table[l].xor(z)
-                        if y.popcount() % 2 == 1:
-                            key = tuple(z.get_integer_vec())
-                            score += 1 if key in row_map else -1
-                        if score > max_score:
-                            max_score = score
-                            max_y = y
-                            max_z = copy.deepcopy(z)
-
-        if max_score == 0:
-            break
-
-        y, z = max_y, max_z
-        for i in range(len(table)):
-            if y.get(i):
-                table[i].xor(z)
-        if y.popcount() % 2 == 1:
-            table.append(z)
-        table = proper(table)
-
-    return table
-
-def to_remove(table: list[BitVector]) -> list[int]:
-    seen = {}
-    to_remove = []
-
-    for i, vec in enumerate(table):
-        vec_int = vec.get_integer_vec()
-        first_one = vec.get_first_one()
-
-        if not vec.get(first_one):
-            to_remove.append(i)
-        elif tuple(vec_int) in seen:
-            to_remove.append(seen[tuple(vec_int)])
-            to_remove.append(i)
-            del seen[tuple(vec_int)]
-        else:
-            seen[tuple(vec_int)] = i
-
-    return to_remove
-
-def tohpe(table: list['BitVector'], nb_qubits: int) -> list['BitVector']:
-    """
-    Simplified and commented version of TOHPE algorithm.
-    Attempts to reduce the number of phase polynomial terms.
-    """
-    def clear_column(i: int, matrix: list['BitVector'], augmented: list['BitVector'], pivots: dict[int, int]) -> None:
-        # Remove column i from pivots and clear it from matrix and augmented
-        if i not in pivots:
-            return
-        val = pivots.pop(i)
-        if not augmented[i].get(i):
-            for j in range(len(matrix)):
-                if augmented[j].get(i):
-                    pivots[j] = val
-                    matrix[i], matrix[j] = copy.deepcopy(matrix[j]), copy.deepcopy(matrix[i])
-                    augmented[i], augmented[j] = copy.deepcopy(augmented[j]), copy.deepcopy(augmented[i])
-                    break
-        col, aug_col = copy.deepcopy(matrix[i]), copy.deepcopy(augmented[i])
-        for j in range(len(matrix)):
-            if j != i and augmented[j].get(i):
-                matrix[j].xor(col)
-                augmented[j].xor(aug_col)
-
-
-    # Prepare extended table for kernel computation
-    ext_table = [copy.deepcopy(bv) for bv in table]
-    for i, row in enumerate(table):
-        t_vec = row.get_boolean_vec()[:nb_qubits]
-        ext = []
-        for _ in range(nb_qubits):
-            ext += t_vec.copy() if t_vec and t_vec.pop(0) else [False] * len(t_vec)
-        ext_table[i].extend_vec(ext, nb_qubits)
-
-    pivots: dict[int, int] = {}
-    augmented = [BitVector(len(table)) for _ in table]
-    for i, e in enumerate(augmented):
-        e.xor_bit(i)
-
-    while True:
-        y = kernel(ext_table, augmented, pivots)
-        if y is None:
-            break
-
-        # Score possible reductions
-        score_map = {}
-        parity = (y.popcount() & 1) == 1
-        for i, row in enumerate(table):
-            key = tuple(row.get_integer_vec())
-            if (parity and not y.get(i)) or (not parity and y.get(i)):
-                score_map[key] = 1
-
-        for i in range(len(table)):
-            if not y.get(i):
-                continue
-            for j in range(len(table)):
-                if y.get(j):
-                    continue
-                z = copy.deepcopy(table[i])
-                z.xor(table[j])
-                key = tuple(z.get_integer_vec())
-                score_map[key] = score_map.get(key, 0) + 2
-
-        # Find best reduction
-        best_key = None
-        best_val = 0
-        for k, v in score_map.items():
-            if v > best_val or (v == best_val and (best_key is None or k < best_key)):
-                best_key, best_val = k, v
-        if best_val <= 0:
-            break
-
-        z = BitVector.from_integer_vec(list(best_key))
-        to_update = y.get_boolean_vec()[:len(table)]
-
-        # If y has odd parity, append new row to all tables
-        if y.popcount() & 1:
-            new_len = len(table[0].bits)
-            table.append(BitVector(new_len))
-            ext_table.append(BitVector(len(ext_table[0].bits)))
-            e = BitVector(len(table))
-            e.xor_bit(len(augmented))
-            augmented.append(e)
-            to_update.append(True)
-
-        # Apply reduction
-        affected = [idx for idx, f in enumerate(to_update) if f]
-        for idx in affected:
-            table[idx].xor(z)
-
-        # Remove duplicate or zero rows, keep tables in sync
-        remove_idxs = sorted(to_remove(table), reverse=True)
-        for idx in remove_idxs:
-            clear_column(idx, ext_table, augmented, pivots)
-            table.pop(idx)
-            ext_table.pop(idx)
-            augmented.pop(idx)
-            to_update.pop(idx)
-        # Truncate augmented rows to match table length
-        for row in augmented:
-            row.bits = row.bits[:len(table)]
-
-        # Update ext_table and augmented for affected rows
-        for idx in affected:
-            if idx >= len(table):  # skip if row was removed
-                continue
-            clear_column(idx, ext_table, augmented, pivots)
-            ext_table[idx] = copy.deepcopy(table[idx])
-            e = BitVector(len(table))
-            e.xor_bit(idx)
-            augmented[idx] = e
-            t_vec = table[idx].get_boolean_vec()[:nb_qubits]
-            ext = []
-            for _ in range(nb_qubits):
-                ext += t_vec.copy() if t_vec and t_vec.pop(0) else [False] * len(t_vec)
-            ext_table[idx].extend_vec(ext, nb_qubits)
-
-        # Ensure ext_table and table have the same number of rows
-        while len(ext_table) < len(table):
-            ext_table.append(BitVector(len(ext_table[0].bits)))
-        while len(ext_table) > len(table):
-            ext_table.pop()
-
-    return table
-
-
-def to_remove_indices(table):
-    seen = {}
-    to_remove = []
-    for i, bv in enumerate(table):
-        vec = tuple(bv.get_integer_vec())
-        first_one = bv.get_first_one()
-        if not bv.get(first_one):
-            to_remove.append(i)
-        elif vec in seen:
-            to_remove.append(seen[vec])
-            to_remove.append(i)
-            del seen[vec]
-        else:
-            seen[vec] = i
-    return to_remove
-
-if __name__ == "__main__":
-    import doctest
-    doctest.testmod()
-
-    # Example usage
-    circ = QuantumCircuit.from_file(Path("./data/input/qc/gf_mult4.qc"))
-    # circ, _, _ = Circuit.from_qc(Path("./data/input/qc/tof.qc"))
-    circ = circ.to_basic_gates()
-    circ = internal_h_opt(circ)
-    circ = circ.hadamard_gadgetization()
-    
-    print("Original Circuit:")
-    print(circ.num_t)
-    
-    sliced_circ = SlicedCircuit.from_circ(circ)
-    optimized_circ = sliced_circ.t_opt("FastTODD")
-    
-    print("Optimized Circuit:")
-    print(optimized_circ.num_t)
+def t_count_optimization(circuit: QuantumCircuit, method: str = "FastTODD") -> QuantumCircuit:
+    sliced_circuit = SlicedCircuit.from_circ(circuit)
+    optimized_circuit = sliced_circuit.t_opt(method)
+    return optimized_circuit
 
