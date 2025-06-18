@@ -1,6 +1,11 @@
 # Reference: https://github.com/VivienVandaele/quantum-circuit-optimization/tree/main 
 
 import copy
+import re
+
+from typing import Optional
+from pathlib import Path
+from collections import defaultdict
 
 class BitVector:
     def __init__(self, size=0):
@@ -51,6 +56,13 @@ class BitVector:
             if b:
                 return i
         return 0  # default to 0 if no '1' found
+    
+    def get_all_ones(self, nb_bits: int) -> list[int]:
+        result = []
+        for i in range(min(nb_bits, len(self.bits))):
+            if self.bits[i]:
+                result.append(i)
+        return result
 
     def clone(self):
         cloned = BitVector(len(self.bits))
@@ -107,6 +119,101 @@ class Circuit:
         self.circ = []
         self.ancillas = {}
 
+    @staticmethod
+    def from_qc(filename: str) -> tuple["Circuit", str, dict[int, str]]:
+        circuit = Circuit(0)
+        qubits_mapping: dict[str, int] = {}
+        rev_qubits_mapping: dict[int, str] = {}
+        header = ""
+        gate_pattern = re.compile(r"(\.*[A-Za-z]+\*?)\s")
+        var_pattern = re.compile(r"\s([A-Za-z0-9]+)")
+
+        with open(filename, "r") as file:
+            for line in file:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                gate_match = gate_pattern.findall(line)
+                if not gate_match:
+                    continue
+                gate = gate_match[0]
+                if gate == ".v":
+                    for name in var_pattern.findall(line):
+                        qubits_mapping[name] = circuit.nb_qubits
+                        rev_qubits_mapping[circuit.nb_qubits] = name
+                        circuit.nb_qubits += 1
+                if gate.startswith("."):
+                    header += line + "\n"
+                    continue
+                qubits = [qubits_mapping[name] for name in var_pattern.findall(line)]
+                if gate == "tof" and len(qubits) == 3:
+                    gate = "tof"
+                elif gate in {"Zd", "Z"} and len(qubits) == 3:
+                    gate = "ccz"
+                elif gate == "cnot" or (gate == "tof" and len(qubits) == 2):
+                    gate = "cx"
+                elif gate == "H":
+                    gate = "h"
+                elif gate == "X":
+                    gate = "x"
+                elif gate == "Z":
+                    gate = "z"
+                elif gate in {"S", "P"}:
+                    gate = "s"
+                elif gate in {"S*", "P*"}:
+                    circuit.circ.append(("z", qubits.copy()))
+                    gate = "s"
+                elif gate == "T":
+                    gate = "t"
+                elif gate == "T*":
+                    circuit.circ.append(("z", qubits.copy()))
+                    circuit.circ.append(("s", qubits.copy()))
+                    gate = "t"
+                else:
+                    raise ValueError(f"Operator not implemented: {gate}")
+                circuit.circ.append((gate, qubits))
+        return circuit, header, rev_qubits_mapping
+
+    def to_qc(self, filename: str, header: str, mapping: dict[int, str]):
+        index = len(mapping)
+        val = len(mapping)
+
+        with open(filename, "w") as file:
+            for line in header.splitlines():
+                file.write(line)
+                tokens = line.split()
+                if tokens and tokens[0] == ".v":
+                    for _ in self.ancillas:
+                        while str(val) in mapping.values():
+                            val += 1
+                        file.write(f" {val}")
+                        mapping[index] = str(val)
+                        index += 1
+                file.write("\n")
+            file.write("BEGIN\n")
+            for gate, qubits in self.circ:
+                if gate == "h":
+                    file.write(f"H {mapping[qubits[0]]}\n")
+                elif gate == "x":
+                    file.write(f"X {mapping[qubits[0]]}\n")
+                elif gate == "z":
+                    file.write(f"Z {mapping[qubits[0]]}\n")
+                elif gate == "s":
+                    file.write(f"S {mapping[qubits[0]]}\n")
+                elif gate == "t":
+                    file.write(f"T {mapping[qubits[0]]}\n")
+                elif gate == "cx":
+                    file.write(f"cnot {mapping[qubits[0]]} {mapping[qubits[1]]}\n")
+                elif gate == "ccx":
+                    file.write(f"tof {mapping[qubits[0]]} {mapping[qubits[1]]} {mapping[qubits[2]]}\n")
+                elif gate == "ccz":
+                    file.write(f"Z {mapping[qubits[0]]} {mapping[qubits[1]]} {mapping[qubits[2]]}\n")
+                else:
+                    raise ValueError(f"Operator not implemented: {gate}")
+            file.write("END")
+
+        return Path(filename).read_text()
+    
     def append(self, circ):
         self.circ.extend(circ)
 
@@ -141,24 +248,11 @@ class Circuit:
         return c
 
     def get_statistics(self):
-        h_count = 0
-        internal_h_count = 0
-        t_count = 0
-        flag = False
-        for gate, _ in self.circ:
-            if gate == "h":
-                h_count += 1
-                if flag:
-                    internal_h_count += 1
-            if gate == "t":
-                t_count += 1
-                flag = True
-        if flag:
-            for gate, _ in reversed(self.circ):
-                if gate == "h":
-                    internal_h_count -= 1
-                if gate == "t":
-                    break
+        h_count = sum(g == "h" for g, _ in self.circ)
+        t_count = sum(g == "t" for g, _ in self.circ)
+        first_t = next((i for i, (g, _) in enumerate(self.circ) if g == "t"), len(self.circ))
+        last_t = len(self.circ) - next((i for i, (g, _) in enumerate(reversed(self.circ)) if g == "t"), len(self.circ)) if t_count else 0
+        internal_h_count = sum(g == "h" for i, (g, _) in enumerate(self.circ) if first_t <= i < last_t)
         return h_count, internal_h_count, t_count
 
     def hadamard_gadgetization(self):
@@ -250,7 +344,7 @@ class SlicedCircuit:
         return sliced
 
     def t_opt(self, optimizer: str):
-        c = self.init_circuit.clone()
+        c = copy.deepcopy(self.init_circuit)
         for i in range(len(self.phase_polynomials)):
             table = self.phase_polynomials[i].table[:]
             if optimizer == "FastTODD":
@@ -586,7 +680,6 @@ def implement_pauli_rotation(tab, col):
         c.circ.append(("h", [pivot]))
     c.append(implement_pauli_z_rotation(tab, col).circ)
     return c
-
 
 def implement_tof(tab, cols, h_gate):
     c = Circuit(tab.nb_qubits)
@@ -926,59 +1019,74 @@ def fast_todd(table, nb_qubits):
 
     return table
 
+def to_remove(table: list[BitVector]) -> list[int]:
+    seen = {}
+    to_remove = []
 
-def tohpe(table, nb_qubits):
-    from collections import defaultdict
+    for i, vec in enumerate(table):
+        vec_int = vec.get_integer_vec()
+        first_one = vec.get_first_one()
 
-    def clear_column(i, matrix, augmented_matrix, pivots):
+        if not vec.get(first_one):
+            to_remove.append(i)
+        elif tuple(vec_int) in seen:
+            to_remove.append(seen[tuple(vec_int)])
+            to_remove.append(i)
+            del seen[tuple(vec_int)]
+        else:
+            seen[tuple(vec_int)] = i
+
+    return to_remove
+
+def tohpe(table: list['BitVector'], nb_qubits: int) -> list['BitVector']:
+    """
+    Simplified and commented version of TOHPE algorithm.
+    Attempts to reduce the number of phase polynomial terms.
+    """
+    def clear_column(i: int, matrix: list['BitVector'], augmented: list['BitVector'], pivots: dict[int, int]) -> None:
+        # Remove column i from pivots and clear it from matrix and augmented
         if i not in pivots:
             return
         val = pivots.pop(i)
-        if not augmented_matrix[i].get(i):
+        if not augmented[i].get(i):
             for j in range(len(matrix)):
-                if augmented_matrix[j].get(i):
+                if augmented[j].get(i):
                     pivots[j] = val
-                    matrix[j], matrix[i] = matrix[i], matrix[j]
-                    augmented_matrix[j], augmented_matrix[i] = augmented_matrix[i], augmented_matrix[j]
+                    matrix[i], matrix[j] = matrix[j].clone(), matrix[i].clone()
+                    augmented[i], augmented[j] = augmented[j].clone(), augmented[i].clone()
                     break
-        col = matrix[i].clone()
-        aug_col = augmented_matrix[i].clone()
+        col, aug_col = matrix[i].clone(), augmented[i].clone()
         for j in range(len(matrix)):
-            if j != i and augmented_matrix[j].get(i):
+            if j != i and augmented[j].get(i):
                 matrix[j].xor(col)
-                augmented_matrix[j].xor(aug_col)
+                augmented[j].xor(aug_col)
 
-    matrix = [bv.clone() for bv in table]
-    for i in range(len(table)):
-        t_vec = table[i].get_boolean_vec()[:nb_qubits]
-        vec = []
+    # Prepare extended table for kernel computation
+    ext_table = [bv.clone() for bv in table]
+    for i, row in enumerate(table):
+        t_vec = row.get_boolean_vec()[:nb_qubits]
+        ext = []
         for _ in range(nb_qubits):
-            if t_vec.pop():
-                vec += t_vec.copy()
-            else:
-                vec += [False] * len(t_vec)
-        matrix[i].extend_vec(vec, nb_qubits)
+            ext += t_vec.copy() if t_vec and t_vec.pop(0) else [False] * len(t_vec)
+        ext_table[i].extend_vec(ext, nb_qubits)
 
-    pivots = {}
-    augmented_matrix = []
-    for i in range(len(table)):
-        bv = BitVector(len(table))
-        bv.xor_bit(i)
-        augmented_matrix.append(bv)
+    pivots: dict[int, int] = {}
+    augmented = [BitVector(len(table)) for _ in table]
+    for i, e in enumerate(augmented):
+        e.xor_bit(i)
 
     while True:
-        y = kernel(matrix, augmented_matrix, pivots)
+        y = kernel(ext_table, augmented, pivots)
         if y is None:
             break
 
-        parity = y.popcount() % 2 == 1
-        score_map = defaultdict(int)
-
-        for i in range(len(table)):
-            cond = y.get(i)
-            vec_key = table[i].get_integer_vec()
-            if (parity and not cond) or (not parity and cond):
-                score_map[tuple(vec_key)] = 1
+        # Score possible reductions
+        score_map = {}
+        parity = (y.popcount() & 1) == 1
+        for i, row in enumerate(table):
+            key = tuple(row.get_integer_vec())
+            if (parity and not y.get(i)) or (not parity and y.get(i)):
+                score_map[key] = 1
 
         for i in range(len(table)):
             if not y.get(i):
@@ -989,60 +1097,67 @@ def tohpe(table, nb_qubits):
                 z = table[i].clone()
                 z.xor(table[j])
                 key = tuple(z.get_integer_vec())
-                score_map[key] += 2
+                score_map[key] = score_map.get(key, 0) + 2
 
-        max_key = None
-        max_val = 0
-        for key, val in score_map.items():
-            if val > max_val or (val == max_val and (max_key is None or key < max_key)):
-                max_key = key
-                max_val = val
-
-        if max_val <= 0:
+        # Find best reduction
+        best_key = None
+        best_val = 0
+        for k, v in score_map.items():
+            if v > best_val or (v == best_val and (best_key is None or k < best_key)):
+                best_key, best_val = k, v
+        if best_val <= 0:
             break
 
-        z = BitVector.from_integer_vec(list(max_key))
+        z = BitVector.from_integer_vec(list(best_key))
         to_update = y.get_boolean_vec()[:len(table)]
-        if y.popcount() % 2 == 1:
-            table.append(BitVector(table[0].size()))
-            matrix.append(BitVector(matrix[0].size()))
-            new_aug = BitVector(len(table))
-            new_aug.xor_bit(len(augmented_matrix))
-            augmented_matrix.append(new_aug)
+
+        # If y has odd parity, append new row to all tables
+        if y.popcount() & 1:
+            new_len = len(table[0].bits)
+            table.append(BitVector(new_len))
+            ext_table.append(BitVector(len(ext_table[0].bits)))
+            e = BitVector(len(table))
+            e.xor_bit(len(augmented))
+            augmented.append(e)
             to_update.append(True)
 
-        indices = [i for i, val in enumerate(to_update) if val]
-        for i in indices:
-            table[i].xor(z)
+        # Apply reduction
+        affected = [idx for idx, f in enumerate(to_update) if f]
+        for idx in affected:
+            table[idx].xor(z)
 
-        to_remove = to_remove_indices(table)
-        to_remove.sort(reverse=True)
-        for i in to_remove:
-            clear_column(i, matrix, augmented_matrix, pivots)
-            table.pop(i)
-            matrix.pop(i)
-            augmented_matrix.pop(i)
-            to_update.pop(i)
+        # Remove duplicate or zero rows, keep tables in sync
+        remove_idxs = sorted(to_remove(table), reverse=True)
+        for idx in remove_idxs:
+            clear_column(idx, ext_table, augmented, pivots)
+            table.pop(idx)
+            ext_table.pop(idx)
+            augmented.pop(idx)
+            to_update.pop(idx)
+        # Truncate augmented rows to match table length
+        for row in augmented:
+            row.bits = row.bits[:len(table)]
 
-        size = len(table)
-        for i in range(len(augmented_matrix)):
-            while augmented_matrix[i].size() > size:
-                augmented_matrix[i].blocks.pop()
-
-        for i in indices:
-            clear_column(i, matrix, augmented_matrix, pivots)
-            matrix[i] = table[i].clone()
-            bv = BitVector(len(table))
-            bv.xor_bit(i)
-            augmented_matrix[i] = bv
-            t_vec = table[i].get_boolean_vec()[:nb_qubits]
-            vec = []
+        # Update ext_table and augmented for affected rows
+        for idx in affected:
+            if idx >= len(table):  # skip if row was removed
+                continue
+            clear_column(idx, ext_table, augmented, pivots)
+            ext_table[idx] = table[idx].clone()
+            e = BitVector(len(table))
+            e.xor_bit(idx)
+            augmented[idx] = e
+            t_vec = table[idx].get_boolean_vec()[:nb_qubits]
+            ext = []
             for _ in range(nb_qubits):
-                if t_vec.pop():
-                    vec += t_vec.copy()
-                else:
-                    vec += [False] * len(t_vec)
-            matrix[i].extend_vec(vec, nb_qubits)
+                ext += t_vec.copy() if t_vec and t_vec.pop(0) else [False] * len(t_vec)
+            ext_table[idx].extend_vec(ext, nb_qubits)
+
+        # Ensure ext_table and table have the same number of rows
+        while len(ext_table) < len(table):
+            ext_table.append(BitVector(len(ext_table[0].bits)))
+        while len(ext_table) > len(table):
+            ext_table.pop()
 
     return table
 
@@ -1062,3 +1177,26 @@ def to_remove_indices(table):
         else:
             seen[vec] = i
     return to_remove
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
+
+    # Example usage
+    circ, header, mapping = Circuit.from_qc(Path("./data/input/qc/gf_mult4.qc"))
+    # circ, _, _ = Circuit.from_qc(Path("./data/input/qc/tof.qc"))
+    circ = circ.decompose_tof()
+    circ = internal_h_opt(circ)
+    circ = circ.hadamard_gadgetization()
+    
+    print("Original Circuit:")
+    print(circ.get_statistics())
+    
+    sliced_circ = SlicedCircuit.from_circ(circ)
+    optimized_circ = sliced_circ.t_opt("TOHPE")
+    
+    print("Optimized Circuit:")
+    print(optimized_circ.get_statistics())
+
+    # output the optimized circuit
+    optimized_circ.to_qc(Path("tmp.qc"), header, mapping)  
