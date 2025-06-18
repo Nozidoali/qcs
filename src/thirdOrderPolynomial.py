@@ -3,13 +3,14 @@
 import copy
 import re
 
-from typing import Optional
 from pathlib import Path
-from collections import defaultdict
 
 class BitVector:
     def __init__(self, size=0):
         self.bits = [False] * size
+
+    def __len__(self):
+        return len(self.bits)
 
     @classmethod
     def from_integer_vec(cls, int_vec):
@@ -632,6 +633,7 @@ class PhasePolynomial:
             c.circ.append(("t", [pivot]))
             c.append(cnot_circ.circ)
         return c
+
 def implement_pauli_z_rotation_from_pauli_product(tab, p):
     c = Circuit(tab.nb_qubits)
     cnot_circ = Circuit(tab.nb_qubits)
@@ -906,17 +908,21 @@ def rank_vector(c_in):
     return vec
 
 def fast_todd(table, nb_qubits):
+    """
+    FastTODD algorithm for phase polynomial optimization.
+    """
     table = [bv.clone() for bv in table]
 
     while True:
         table = tohpe(table, nb_qubits)
 
+        # Build extended matrix for kernel computation
         matrix = [bv.clone() for bv in table]
         for i in range(len(matrix)):
             t_vec = matrix[i].get_boolean_vec()[:nb_qubits]
             extended = []
             for _ in range(nb_qubits):
-                if t_vec.pop():
+                if t_vec and t_vec.pop(0):
                     extended += t_vec.copy()
                 else:
                     extended += [False] * len(t_vec)
@@ -931,7 +937,8 @@ def fast_todd(table, nb_qubits):
 
         kernel(matrix, augmented, pivots)
         pivots = {v: k for k, v in pivots.items()}
-        row_map = {bv.get_integer_vec(): i for i, bv in enumerate(table)}
+        # Use tuple for hashable keys
+        row_map = {tuple(bv.get_integer_vec()): i for i, bv in enumerate(table)}
 
         max_score = 0
         max_z, max_y = None, None
@@ -941,8 +948,7 @@ def fast_todd(table, nb_qubits):
                 z.xor(table[j])
                 z_vec = z.get_boolean_vec()
 
-                r_mat = []
-                r_aug = []
+                r_mat, r_aug = [], []
                 for k in range(nb_qubits):
                     col = BitVector(len(matrix[0]))
                     a_col = BitVector(len(augmented[0]))
@@ -958,6 +964,7 @@ def fast_todd(table, nb_qubits):
                     r_mat.append(col)
                     r_aug.append(a_col)
 
+                # Last column for quadratic terms
                 col = BitVector(len(matrix[0]))
                 a_col = BitVector(len(augmented[0]))
                 idx = 0
@@ -977,6 +984,7 @@ def fast_todd(table, nb_qubits):
                 r_mat.append(col)
                 r_aug.append(a_col)
 
+                # Row reduction
                 for k in range(len(r_mat)):
                     idx = r_mat[k].get_first_one()
                     if r_mat[k].get(idx):
@@ -992,14 +1000,13 @@ def fast_todd(table, nb_qubits):
                         for l in range(len(table)):
                             if y.get(l):
                                 table[l].xor(z)
-                                if table[l].get_integer_vec() in row_map and not y.get(row_map[table[l].get_integer_vec()]):
+                                key = tuple(table[l].get_integer_vec())
+                                if key in row_map and not y.get(row_map[key]):
                                     score += 2
                                 table[l].xor(z)
                         if y.popcount() % 2 == 1:
-                            if z.get_integer_vec() in row_map:
-                                score += 1
-                            else:
-                                score -= 1
+                            key = tuple(z.get_integer_vec())
+                            score += 1 if key in row_map else -1
                         if score > max_score:
                             max_score = score
                             max_y = y
@@ -1008,8 +1015,7 @@ def fast_todd(table, nb_qubits):
         if max_score == 0:
             break
 
-        y = max_y
-        z = max_z
+        y, z = max_y, max_z
         for i in range(len(table)):
             if y.get(i):
                 table[i].xor(z)
@@ -1193,7 +1199,7 @@ if __name__ == "__main__":
     print(circ.get_statistics())
     
     sliced_circ = SlicedCircuit.from_circ(circ)
-    optimized_circ = sliced_circ.t_opt("TOHPE")
+    optimized_circ = sliced_circ.t_opt("FastTODD")
     
     print("Optimized Circuit:")
     print(optimized_circ.get_statistics())
