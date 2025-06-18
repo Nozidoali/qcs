@@ -163,7 +163,15 @@ class QuantumCircuit:
         self.gates.append({"name": "Tof", "ctrl1": c1, "ctrl2": c2, "target": target})
         if p1: self.add_x(c1)
         if p2: self.add_x(c2)
-        
+    
+    def append(self, other: 'QuantumCircuit') -> None:
+        assert isinstance(other, QuantumCircuit), "Can only append another QuantumCircuit"
+        self.n_qubits = max(self.n_qubits, other.n_qubits)
+        self.gates.extend(other.gates)    
+            
+    def add_gate(self, gate: dict) -> None:
+        self.gates.append(gate.copy())
+    
     def add_mcx(
         self, cs: list[int], target: int, ps: list[bool] = [], clean: bool = False,
     ) -> None:
@@ -172,9 +180,6 @@ class QuantumCircuit:
             self.add_cnot(cs[0], target, ps[0])
         elif len(cs) == 2:
             self.add_toffoli(cs[0], cs[1], target, ps[0], ps[1], clean)
-            
-    def add_gate(self, gate: dict) -> None:
-        self.gates.append(gate.copy())
 
     def add_cnot(self, ctrl: int, target: int, p: bool = False) -> None:
         if p: self.add_x(ctrl)
@@ -315,3 +320,21 @@ class QuantumCircuit:
     @property
     def num_2q(self) -> int:
         return sum(1 for gate in self.gates if gate["name"] in ["CNOT", "CZ"])
+    
+    @property
+    def num_internal_h(self) -> int:
+        first_t: int = next((i for i, gate in enumerate(self.gates) if gate["name"] in ["T", "Tdg"]), len(self.gates))
+        last_t: int = len(self.gates) - next((i for i, gate in enumerate(reversed(self.gates)) if gate["name"] in ["T", "Tdg"]), len(self.gates)) if self.num_t > 0 else 0
+        return sum(1 for i, gate in enumerate(self.gates) if gate["name"] == "HAD" and first_t <= i < last_t)
+    
+    @property
+    def num_h(self) -> int:
+        return sum(1 for gate in self.gates if gate["name"] == "HAD")
+
+    @property
+    def first_t(self) -> int:
+        return next((i for i, gate in enumerate(self.gates) if gate["name"] in ["T", "Tdg"]), len(self.gates))
+    
+    @property
+    def last_t(self) -> int:
+        return len(self.gates) - next((i for i, gate in enumerate(reversed(self.gates)) if gate["name"] in ["T", "Tdg"]), len(self.gates)) if self.num_t > 0 else 0
