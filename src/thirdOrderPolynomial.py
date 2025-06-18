@@ -27,7 +27,7 @@ def fast_todd(table, nb_qubits):
                     extended += t_vec.copy()
                 else:
                     extended += [False] * len(t_vec)
-            matrix[i].extend_vec(extended, nb_qubits)
+            matrix[i].extend_vec(extended, len(extended))
 
         pivots = {}
         augmented = []
@@ -533,6 +533,9 @@ def rank_vector(c_in):
     return vec
 
 def t_count_optimization(circuit: QuantumCircuit, method: str = "FastTODD") -> QuantumCircuit:
+    circuit = circuit.to_basic_gates()
+    circuit = internal_h_opt(circuit)
+    circuit = circuit.hadamard_gadgetization()
     sliced_circuit = SlicedCircuit.from_circ(circuit)
     optimized_circuit = sliced_circuit.t_opt(method)
     return optimized_circuit

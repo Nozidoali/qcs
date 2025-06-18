@@ -411,8 +411,8 @@ def kernel(matrix: list[BitVector], augmented_matrix: list[BitVector], pivots: d
                 augmented_matrix[i].xor(augmented_matrix[j])
         index: int = matrix[i].get_first_one()
         if matrix[i].get(index):
-            for j in pivots:
-                if matrix[j].get(index):
+            for j in range(len(matrix)):
+                if j in pivots and matrix[j].get(index):
                     matrix[j].xor(matrix[i])
                     augmented_matrix[j].xor(augmented_matrix[i])
             pivots[i] = index
