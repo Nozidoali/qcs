@@ -47,9 +47,9 @@ def plot_circuit(circ, fn=None):
     x = {i: c * xc for i, c in gloc.items()}
     y = {q: (circ.n_qubits - 1 - q) * yc for q in range(circ.n_qubits)}
     
-    w, h = cols * xc + 2 * xm, circ.n_qubits * yc + 2 * ym
+    w, h = cols * xc + 2 * xm, (circ.n_qubits-1) * yc + 2 * ym
     fig, ax = plt.subplots(figsize=(w, h))
-    ax.set_xlim(-xm, cols * xc + xm), ax.set_ylim(-ym, circ.n_qubits * yc + ym), ax.axis("off")
+    ax.set_xlim(-xm, cols * xc + xm), ax.set_ylim(-ym, (circ.n_qubits-1) * yc + ym), ax.axis("off")
     
     tr = mtrans.blended_transform_factory(ax.transAxes, ax.transData)
     [ax.axhline(v, lw=1, c="gray") for v in y.values()]
@@ -64,13 +64,19 @@ def plot_circuit(circ, fn=None):
     for i, g in enumerate(circ.gates):
         p, n = x[i], g["name"]
         if n == "CNOT":
-            vline(p, y[g["ctrl"]], y[g["target"]]); dot(p, y[g["ctrl"]]); xmark(p, y[g["target"]])
+            vline(p, y[g["ctrl"]], y[g["target"]])
+            dot(p, y[g["ctrl"]])
+            xmark(p, y[g["target"]])
+        elif n == "CZ":
+            vline(p, y[g["ctrl"]], y[g["target"]])
+            dot(p, y[g["ctrl"]])
+            dot(p, y[g["target"]])
         elif n == "Tof":
             tgt = y[g["target"]]
             for c in ("ctrl1", "ctrl2"): vline(p, y[g[c]], tgt); dot(p, y[g[c]])
             xmark(p, tgt)
         elif n in {"T", "Tdg"}:
-            qt = y[g["target"]]; square(p, qt, colors[n]); text(p, qt, "+" if n == "T" else "-", "white")
+            qt = y[g["target"]]; square(p, qt, colors[n]); text(p, qt, "T" if n == "T" else "T", "white")
         elif n in {"X", "S", "HAD"}:
             qt = y[g["target"]]; square(p, qt, colors[n]); text(p, qt, {"X":"X","S":"S","HAD":"H"}[n], "white")
         else:

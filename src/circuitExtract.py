@@ -94,6 +94,9 @@ def xor_block_grouping(network: LogicNetwork, **kwargs) -> QuantumCircuit:
         if gate.is_and:
             c1, c2 = map(lambda x: qubit_of[x], gate.inputs)
             p1, p2 = gate.data["p1"], gate.data["p2"]
+            if c1 is c2:
+                if p1 != p2: pass 
+                else: circuit.add_cnot(c1, qubit, p1)
             circuit.add_toffoli(c1, c2, qubit, p1, p2, qubit_is_clean[qubit])
         elif gate.is_xor:
             c1, c2 = map(lambda x: qubit_of[x], gate.inputs)
@@ -183,6 +186,10 @@ def _retrieve_nework_rec(network: LogicNetwork, circuit: QuantumCircuit, node_to
                     circuit.add_cnot(node_to_qubit[f], root_index)
         elif gate.is_and:
             # TODO: consider the polarity of the gate
+            if node_to_qubit[gate.inputs[0]] == node_to_qubit[gate.inputs[1]]:
+                if gate.data["p1"] != gate.data["p2"]:
+                    circuit.add_cnot(node_to_qubit[gate.inputs[0]], root_index)
+                continue
             circuit.add_toffoli(node_to_qubit[gate.inputs[0]], node_to_qubit[gate.inputs[1]], root_index, clean=(i==0))
         node_to_qubit[gate.output] = root_index
 
@@ -238,3 +245,7 @@ def extract_q_opt(network: LogicNetwork, run_zx=True) -> QuantumCircuit:
     node_to_cut:  dict[str, list] = area_oriented_mapping(network, node_to_cuts)
     circuit: QuantumCircuit = retrieve_network(network, node_to_cut)
     return post_process(circuit, run_zx=run_zx)
+
+def extract(network: LogicNetwork, **kwargs) -> QuantumCircuit:
+    run_zx: bool = kwargs.get("run_zx", False)
+    return extract_q_opt(network, run_zx=run_zx)

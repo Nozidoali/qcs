@@ -65,7 +65,13 @@ class QuantumCircuit:
                 _circuit.add_gate(gate)
         return _circuit.cleanup_dangling()
     
-    def hadamard_gadgetization(self) -> 'QuantumCircuit':
+    def hadamard_gadgetization(self, allow_mapping: bool = False) -> 'QuantumCircuit':
+        if allow_mapping:
+            return self.hadamard_gadgetization_mapping()
+        else:
+            return self.hadamard_gadgetization_no_mapping()
+    
+    def hadamard_gadgetization_no_mapping(self) -> 'QuantumCircuit':
         _circuit = QuantumCircuit()
         _circuit.n_qubits = self.n_qubits
         flag = False
@@ -85,6 +91,43 @@ class QuantumCircuit:
                 _circuit.add_gate({"name": "CNOT", "ctrl": target, "target": _anc})
             else:
                 _circuit.add_gate(gate)
+        return _circuit
+    
+    def hadamard_gadgetization_mapping(self) -> 'QuantumCircuit':
+        """
+        This method allows the hadamard gadgetization with qubit mapping.
+        However, the CZ introduced by the gadgetization still requires a Hadamard gate
+        """
+        _circuit = QuantumCircuit()
+        _old_to_new: dict[int, int] = {}
+        for i in range(self.n_qubits):
+            _old_to_new[i] = _circuit.request_qubit()
+            
+        def mapped_gate(gate: dict) -> dict:
+            new_gate = gate.copy()
+            if "ctrl" in gate:
+                new_gate["ctrl"] = _old_to_new[gate["ctrl"]]
+            if "target" in gate:
+                new_gate["target"] = _old_to_new[gate["target"]]
+            if "ctrl1" in gate:
+                new_gate["ctrl1"] = _old_to_new[gate["ctrl1"]]
+            if "ctrl2" in gate:
+                new_gate["ctrl2"] = _old_to_new[gate["ctrl2"]]
+            return new_gate
+            
+        flag = False
+        last = max((i for i, gate in enumerate(self.gates) if gate["name"] == "T"), default=0)
+        for i, gate in enumerate(self.gates):
+            if gate["name"] == "T": flag = True
+            if gate["name"] == "HAD" and flag and i < last:
+                target = gate["target"]
+                _anc = _circuit.request_qubit()
+                _circuit.add_gate({"name": "HAD", "target": _anc})
+                _circuit.add_gate({"name": "CZ", "ctrl": _old_to_new[target], "target": _anc})
+                _old_to_new[target] = _anc
+            else:
+                _mapped_gate = mapped_gate(gate)
+                _circuit.add_gate(_mapped_gate)
         return _circuit
     
     def cleanup_dangling(self) -> 'QuantumCircuit':
@@ -113,7 +156,7 @@ class QuantumCircuit:
     def request_qubits(self, n: int) -> list[int]:
         return [self.request_qubit() for _ in range(n)]
 
-    def add_toffoli(self, c1: int, c2: int, target: int, p1: bool = False, p2: bool = False) -> None:
+    def add_toffoli(self, c1: int, c2: int, target: int, p1: bool = False, p2: bool = False, clean: bool = False) -> None:
         assert is_unique([c1, c2, target]), f"Control and target qubits must be unique, got {c1}, {c2}, {target}"
         if p1: self.add_x(c1)
         if p2: self.add_x(c2)   
@@ -139,14 +182,10 @@ class QuantumCircuit:
         if p: self.add_x(ctrl)
         
     def add_cz(self, ctrl: int, target: int) -> None:
-        self.add_h(target)
-        self.gates.append({"name": "CNOT", "ctrl": ctrl, "target": target})
-        self.add_h(target)
+        self.gates.append({"name": "CZ", "ctrl": ctrl, "target": target})
     
     def add_z(self, target: int) -> None:
-        self.add_h(target)
-        self.gates.append({"name": "X", "target": target})
-        self.add_h(target)
+        self.gates.append({"name": "Z", "target": target})
 
     def add_x(self, target: int) -> None:
         self.gates.append({"name": "X", "target": target})
@@ -167,6 +206,9 @@ class QuantumCircuit:
     def deps_of(gate: dict) -> set[int]:
         deps: set[int] = set()
         if gate["name"] == "CNOT":
+            deps.add(gate["ctrl"])
+            deps.add(gate["target"])
+        elif gate["name"] == "CZ":
             deps.add(gate["ctrl"])
             deps.add(gate["target"])
         elif gate["name"] == "Tof":
@@ -191,6 +233,8 @@ class QuantumCircuit:
                 qasm_str += f"ccx q[{gate['ctrl1']}], q[{gate['ctrl2']}], q[{gate['target']}];\n"
             elif gate["name"] == "CNOT":
                 qasm_str += f"cx q[{gate['ctrl']}], q[{gate['target']}];\n"
+            elif gate["name"] == "CZ":
+                qasm_str += f"cz q[{gate['ctrl']}], q[{gate['target']}];\n"
             elif gate["name"] == "X":
                 qasm_str += f"x q[{gate['target']}];\n"
             elif gate["name"] == "HAD":
@@ -217,7 +261,6 @@ class QuantumCircuit:
     
     @staticmethod
     def from_zx_circuit(qc) -> 'QuantumCircuit':
-        import pyzx as zx
         circuit = QuantumCircuit()
         circuit.request_qubits(qc.qubits)
         for gate in qc.gates:
@@ -247,7 +290,6 @@ class QuantumCircuit:
                 circuit.add_tdg(gate.target)
             else:
                 raise NotImplementedError(f"Unsupported gate: \"{gate.name}\"")
-        
         return circuit
     
     @staticmethod
