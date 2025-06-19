@@ -33,9 +33,9 @@ if __name__ == "__main__":
         
         num_internal_h = circuit.num_internal_h
         
-        method = "FastTODD"
-        # if name in ["gf_mult2", "gf_mult3", "gf_mult4", "gf_mult5"]:
-        #     method = "FastTODD"
+        method = "TOHPE"
+        if name in ["gf_mult4", "gf_mult5", "gf_mult6"]:
+            method = "FastTODD"
         
         circuit = t_count_optimization(circuit, method=method)
         runtime = time.time() - tic
