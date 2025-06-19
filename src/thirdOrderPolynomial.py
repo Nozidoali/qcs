@@ -2,11 +2,8 @@
 
 import copy
 
-from pathlib import Path
-
-from cliffordAlgebra import *
+from stabilizerTableau import *
 from quantumCircuit import *
-
 
 def fast_todd(table, nb_qubits):
     """
@@ -149,15 +146,14 @@ def tohpe(table: list['BitVector'], nb_qubits: int) -> list['BitVector']:
                 matrix[j].xor(col)
                 augmented[j].xor(aug_col)
 
-
     # Prepare extended table for kernel computation
-    ext_table = [copy.deepcopy(bv) for bv in table]
+    matrix = [copy.deepcopy(bv) for bv in table]
     for i, row in enumerate(table):
         t_vec = row.get_boolean_vec()[:nb_qubits]
         ext = []
         for _ in range(nb_qubits):
             ext += t_vec.copy() if t_vec and t_vec.pop(0) else [False] * len(t_vec)
-        ext_table[i].extend_vec(ext, nb_qubits)
+        matrix[i].extend_vec(ext, nb_qubits)
 
     pivots: dict[int, int] = {}
     augmented = [BitVector(len(table)) for _ in table]
@@ -165,7 +161,9 @@ def tohpe(table: list['BitVector'], nb_qubits: int) -> list['BitVector']:
         e.xor_bit(i)
 
     while True:
-        y = kernel(ext_table, augmented, pivots)
+        
+        print(f"[INFO] Current number of rows: {len(matrix)}")
+        y = kernel(matrix, augmented, pivots)
         if y is None:
             break
 
@@ -204,7 +202,7 @@ def tohpe(table: list['BitVector'], nb_qubits: int) -> list['BitVector']:
         if y.popcount() & 1:
             new_len = len(table[0].bits)
             table.append(BitVector(new_len))
-            ext_table.append(BitVector(len(ext_table[0].bits)))
+            matrix.append(BitVector(len(matrix[0].bits)))
             e = BitVector(len(table))
             e.xor_bit(len(augmented))
             augmented.append(e)
@@ -218,9 +216,9 @@ def tohpe(table: list['BitVector'], nb_qubits: int) -> list['BitVector']:
         # Remove duplicate or zero rows, keep tables in sync
         remove_idxs = sorted(to_remove(table), reverse=True)
         for idx in remove_idxs:
-            clear_column(idx, ext_table, augmented, pivots)
+            clear_column(idx, matrix, augmented, pivots)
             table.pop(idx)
-            ext_table.pop(idx)
+            matrix.pop(idx)
             augmented.pop(idx)
             to_update.pop(idx)
         # Truncate augmented rows to match table length
@@ -231,8 +229,8 @@ def tohpe(table: list['BitVector'], nb_qubits: int) -> list['BitVector']:
         for idx in affected:
             if idx >= len(table):  # skip if row was removed
                 continue
-            clear_column(idx, ext_table, augmented, pivots)
-            ext_table[idx] = copy.deepcopy(table[idx])
+            clear_column(idx, matrix, augmented, pivots)
+            matrix[idx] = copy.deepcopy(table[idx])
             e = BitVector(len(table))
             e.xor_bit(idx)
             augmented[idx] = e
@@ -240,13 +238,13 @@ def tohpe(table: list['BitVector'], nb_qubits: int) -> list['BitVector']:
             ext = []
             for _ in range(nb_qubits):
                 ext += t_vec.copy() if t_vec and t_vec.pop(0) else [False] * len(t_vec)
-            ext_table[idx].extend_vec(ext, nb_qubits)
+            matrix[idx].extend_vec(ext, nb_qubits)
 
         # Ensure ext_table and table have the same number of rows
-        while len(ext_table) < len(table):
-            ext_table.append(BitVector(len(ext_table[0].bits)))
-        while len(ext_table) > len(table):
-            ext_table.pop()
+        while len(matrix) < len(table):
+            matrix.append(BitVector(len(matrix[0].bits)))
+        while len(matrix) > len(table):
+            matrix.pop()
 
     return table
 
@@ -314,7 +312,7 @@ class SlicedCircuit:
         return sliced
 
     def t_opt(self, optimizer: str):
-        c = copy.deepcopy(self.init_circuit)
+        _circuit = copy.deepcopy(self.init_circuit)
         for i in range(len(self.phase_polynomials)):
             table = self.phase_polynomials[i].table[:]
             if optimizer == "FastTODD":
@@ -324,11 +322,11 @@ class SlicedCircuit:
             else:
                 print(f"Optimizer not implemented: {optimizer}")
                 raise SystemExit(1)
-            c.append(self.phase_polynomials[i].clifford_correction(table, self.nb_qubits).to_circ(False))
-            c.append(self.phase_polynomials[i].to_circ())
+            _circuit.append(self.phase_polynomials[i].clifford_correction(table, self.nb_qubits).to_circ(False))
+            _circuit.append(self.phase_polynomials[i].to_circ())
             if i < len(self.tableau_vec):
-                c.append(self.tableau_vec[i].to_circ(True))
-        return c
+                _circuit.append(self.tableau_vec[i].to_circ(True))
+        return _circuit
 
 def implement_pauli_z_rotation_from_pauli_product(tab, p) -> QuantumCircuit:
     qc = QuantumCircuit(); qc.request_qubits(tab.nb_qubits)
@@ -534,8 +532,11 @@ def rank_vector(c_in):
 
 def t_count_optimization(circuit: QuantumCircuit, method: str = "FastTODD") -> QuantumCircuit:
     circuit = circuit.to_basic_gates()
+    print(f"[INFO] number of internal H gates before optimization: {circuit.num_internal_h}")
     circuit = internal_h_opt(circuit)
+    print(f"[INFO] number of internal H gates before gadgetization: {circuit.num_internal_h}")
     circuit = circuit.hadamard_gadgetization()
+    print(f"[INFO] number of internal H gates after gadgetization: {circuit.num_internal_h}")
     sliced_circuit = SlicedCircuit.from_circ(circuit)
     optimized_circuit = sliced_circuit.t_opt(method)
     return optimized_circuit

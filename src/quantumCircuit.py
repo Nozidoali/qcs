@@ -72,26 +72,32 @@ class QuantumCircuit:
             return self.hadamard_gadgetization_no_mapping()
     
     def hadamard_gadgetization_no_mapping(self) -> 'QuantumCircuit':
-        _circuit = QuantumCircuit()
-        _circuit.n_qubits = self.n_qubits
+        initial_circuit = QuantumCircuit()
+        initial_circuit.n_qubits = self.n_qubits
+        
+        internal_circuit = QuantumCircuit()
+        internal_circuit.n_qubits = self.n_qubits
         flag = False
         last = max((i for i, gate in enumerate(self.gates) if gate["name"] == "T"), default=0)
         for i, gate in enumerate(self.gates):
             if gate["name"] == "T": flag = True
             if gate["name"] == "HAD" and flag and i < last:
                 target = gate["target"]
-                _anc = _circuit.request_qubit()
-                _circuit.add_gate({"name": "HAD", "target": _anc})
-                _circuit.add_gate({"name": "S", "target": _anc})
-                _circuit.add_gate({"name": "S", "target": target})
-                _circuit.add_gate({"name": "CNOT", "ctrl": target, "target": _anc})
-                _circuit.add_gate({"name": "S", "target": target})
-                _circuit.add_gate({"name": "Z", "target": target})
-                _circuit.add_gate({"name": "CNOT", "ctrl": _anc, "target": target})
-                _circuit.add_gate({"name": "CNOT", "ctrl": target, "target": _anc})
+                _anc = internal_circuit.request_qubit()
+                
+                initial_circuit.add_gate({"name": "HAD", "target": _anc})
+                internal_circuit.add_gate({"name": "S", "target": _anc})
+                internal_circuit.add_gate({"name": "S", "target": target})
+                internal_circuit.add_gate({"name": "CNOT", "ctrl": target, "target": _anc})
+                internal_circuit.add_gate({"name": "S", "target": target})
+                internal_circuit.add_gate({"name": "Z", "target": target})
+                internal_circuit.add_gate({"name": "CNOT", "ctrl": _anc, "target": target})
+                internal_circuit.add_gate({"name": "CNOT", "ctrl": target, "target": _anc})
             else:
-                _circuit.add_gate(gate)
-        return _circuit
+                internal_circuit.add_gate(gate)
+                
+        initial_circuit.append(internal_circuit)
+        return initial_circuit
     
     def hadamard_gadgetization_mapping(self) -> 'QuantumCircuit':
         """

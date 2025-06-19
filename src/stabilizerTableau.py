@@ -249,7 +249,7 @@ class Tableau:
         return qc
     
 @dataclass
-class TableauStab:
+class TableauStabilizer:
     z: BitVector
     x: BitVector
     sign: bool = False
@@ -262,7 +262,7 @@ class TableauColumnMajor:
             z = BitVector(nb_qubits)
             z.xor_bit(i)
             x = BitVector(nb_qubits)
-            self.stabs.append(TableauStab(z, x, False))
+            self.stabs.append(TableauStabilizer(z, x, False))
 
     def prepend_x(self, qubit):
         for stab in self.stabs:
@@ -400,12 +400,11 @@ def proper(table: list[BitVector]) -> list[BitVector]:
         table.pop(i)
     return table
 
-
 def kernel(matrix: list[BitVector], augmented_matrix: list[BitVector], pivots: dict[int, int]) -> BitVector | None:
     for i in range(len(matrix)):
         if i in pivots:
             continue
-        for j in list(pivots):
+        for j in pivots.keys():
             if matrix[i].get(pivots[j]):
                 matrix[i].xor(matrix[j])
                 augmented_matrix[i].xor(augmented_matrix[j])
