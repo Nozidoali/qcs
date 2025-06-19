@@ -50,10 +50,10 @@ class BitVector:
         return sum(self.bits)
 
     def get_first_one(self):
-        for i, b in enumerate(self.bits):
-            if b:
-                return i
-        return 0  # default to 0 if no '1' found
+        try:
+            return self.bits.index(True)
+        except ValueError:
+            return 0 # Return 0 if no '1' is found, as a default behavior
     
     def get_all_ones(self, nb_bits: int) -> list[int]:
         result = []
@@ -400,20 +400,22 @@ def proper(table: list[BitVector]) -> list[BitVector]:
     return table
 
 def kernel(matrix: list[BitVector], augmented_matrix: list[BitVector], pivots: dict[int, int]) -> BitVector | None:
-    for i in range(len(matrix)):
-        if i in pivots:
+    for row_idx, row in enumerate(matrix):
+        if row_idx in pivots:
             continue
-        for j in pivots.keys():
-            if matrix[i].get(pivots[j]):
-                matrix[i].xor(matrix[j])
-                augmented_matrix[i].xor(augmented_matrix[j])
-        index: int = matrix[i].get_first_one()
-        if matrix[i].get(index):
-            for j in range(len(matrix)):
-                if j in pivots and matrix[j].get(index):
-                    matrix[j].xor(matrix[i])
-                    augmented_matrix[j].xor(augmented_matrix[i])
-            pivots[i] = index
+        # Eliminate current row using existing pivots
+        for pivot_row, pivot_col in pivots.items():
+            if row.get(pivot_col):
+                matrix[row_idx].xor(matrix[pivot_row])
+                augmented_matrix[row_idx].xor(augmented_matrix[pivot_row])
+        index = row.get_first_one()
+        if row.get(index):
+            # Eliminate this variable from all pivot rows
+            for pivot_row, _ in pivots.items():
+                if matrix[pivot_row].get(index):
+                    matrix[pivot_row].xor(row)
+                    augmented_matrix[pivot_row].xor(augmented_matrix[row_idx])
+            pivots[row_idx] = index
         else:
-            return copy.deepcopy(augmented_matrix[i])
+            return copy.deepcopy(augmented_matrix[row_idx])
     return None

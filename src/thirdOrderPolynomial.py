@@ -19,14 +19,14 @@ def fast_todd(table, n_qubits: int) -> list['BitVector']:
         augmented = identity_table(len(table))
 
         kernel(matrix, augmented, pivots)
-        pivots = {v: k for k, v in pivots.items()}
+        _pivots = {v: k for k, v in pivots.items()}
         row_map = {tuple(bv.get_integer_vec()): i for i, bv in enumerate(table)}
 
         max_score, max_z, max_y = 0, None, None
         for i, j in itertools.combinations(range(len(table)), 2):
             z = copy.deepcopy(table[i]); z.xor(table[j])
             z_vec = z.get_boolean_vec()
-            r_mat, r_aug = calculate_reduced_matrix(n_qubits, matrix, pivots, augmented, z_vec)
+            r_mat, r_aug = calculate_reduced_matrix(n_qubits, matrix, _pivots, augmented, z_vec)
             _max_score, _max_z, _max_y = evaluate_reduction_score(table, i, row_map, j, z, r_mat, r_aug)
             if _max_score > max_score:
                 max_score, max_z, max_y = _max_score, _max_z, _max_y
@@ -79,14 +79,15 @@ def evaluate_reduction_score(table, i, row_map, j, z, r_mat, r_aug):
         elif ra.get(i) ^ ra.get(j):
             score = 0
             y = copy.deepcopy(ra)
+            _table = copy.deepcopy(table)
             # Simulate applying reduction and count improvements
-            for l in range(len(table)):
+            for l in range(len(_table)):
                 if y.get(l):
-                    table[l].xor(z)
-                    key = tuple(table[l].get_integer_vec())
+                    _table[l].xor(z)
+                    key = tuple(_table[l].get_integer_vec())
                     if key in row_map and not y.get(row_map[key]):
                         score += 2
-                    table[l].xor(z)
+                    _table[l].xor(z)
             # Adjust score for parity
             if y.popcount() % 2 == 1:
                 key = tuple(z.get_integer_vec())
@@ -113,7 +114,7 @@ def calculate_reduced_matrix(n_qubits, matrix, pivots, augmented, z_vec):
         r_mat.append(col)
         r_aug.append(a_col)
 
-            # Last column for quadratic terms
+    # Last column for quadratic terms
     col = BitVector(len(matrix[0]))
     a_col = BitVector(len(augmented[0]))
     idx = 0
@@ -158,12 +159,10 @@ def tohpe(table: list['BitVector'], n_qubits: int) -> list['BitVector']:
                 augmented[j].xor(aug_col)
 
     matrix = extend_boolean_vectors(table, n_qubits)
-
     pivots: dict[int, int] = {}
     augmented = identity_table(len(table))
 
     while True:
-        print(f"[INFO] Current number of rows: {len(matrix)}")
         y = kernel(matrix, augmented, pivots)
         if y is None:
             break
@@ -213,27 +212,48 @@ def tohpe(table: list['BitVector'], n_qubits: int) -> list['BitVector']:
         for idx in affected:
             table[idx].xor(z)
 
+        if len(to_update) < len(table):
+            to_update.extend([False] * (len(table) - len(to_update)))
+            
         # Remove duplicate or zero rows, keep tables in sync
         remove_idxs = sorted(to_remove(table), reverse=True)
         for idx in remove_idxs:
-            clear_column(idx, matrix, augmented, pivots)
-            table.pop(idx)
-            matrix.pop(idx)
-            augmented.pop(idx)
-            to_update.pop(idx)
+            last = len(table) - 1
+            if idx != last:
+                table[idx], table[last]           = table[last], table[idx]
+                matrix[idx], matrix[last]         = matrix[last], matrix[idx]
+                augmented[idx], augmented[last]   = augmented[last], augmented[idx]
+                to_update[idx], to_update[last]   = to_update[last], to_update[idx]
+            table.pop()
+            matrix.pop()
+            augmented.pop()
+            to_update.pop()
+
+            if last in pivots:
+                pivots[idx] = pivots.pop(last)
+
+            for row in augmented:
+                if row.get(idx) != row.get(last):
+                    row.xor_bit(idx)
+                if row.get(last):
+                    row.xor_bit(last)
+                row.bits.pop()
+                
         # Truncate augmented rows to match table length
         for row in augmented:
             row.bits = row.bits[:len(table)]
 
-        # Update ext_table and augmented for affected rows
+        # Update matrix and augmented for affected rows
         for idx in affected:
             if idx >= len(table):  # skip if row was removed
                 continue
             clear_column(idx, matrix, augmented, pivots)
             matrix[idx] = copy.deepcopy(table[idx])
+            
             e = BitVector(len(table))
             e.xor_bit(idx)
             augmented[idx] = e
+            
             t_vec = table[idx].get_boolean_vec()[:n_qubits]
             ext = []
             for _ in range(n_qubits):

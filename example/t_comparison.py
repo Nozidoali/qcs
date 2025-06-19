@@ -20,34 +20,29 @@ if __name__ == "__main__":
         
         name: str = file.stem
         
-        # if name not in ["gf_mult2", "gf_mult3", "gf_mult4", "gf_mult5", "gf_mult6", "gf_mult7", "gf_mult8", "gf_mult9", "gf_mult10"]:
-        if name not in ["gf_mult2", "gf_mult3", "gf_mult4", "gf_mult5", "gf_mult6"]:
+        if name not in ["gf_mult2", "gf_mult3", "gf_mult4", "gf_mult5", "gf_mult6", "gf_mult7", "gf_mult8", "gf_mult9"]:
             continue
-        
-        # if name != "tof_3":
-        #     continue
                 
-        tic = time.time()
-        circuit = QuantumCircuit.from_file(file).to_basic_gates()
-        print(f"{name}, {circuit.num_t}, {circuit.n_qubits}, {circuit.num_2q}, {circuit.num_internal_h}")
-        
-        num_internal_h = circuit.num_internal_h
-        
-        method = "TOHPE"
-        if name in ["gf_mult4", "gf_mult5", "gf_mult6"]:
+        try:
+            tic = time.time()
+            circuit = QuantumCircuit.from_file(file).to_basic_gates()            
+            num_internal_h = circuit.num_internal_h
+            
             method = "FastTODD"
-        
-        circuit = t_count_optimization(circuit, method=method)
-        runtime = time.time() - tic
-        
-        print(f"{name}, {circuit.num_t}, {circuit.n_qubits}, {circuit.num_2q}, {runtime:.2f}, {num_internal_h}")
-        datas.append({
-            "name": name,
-            "t_count": circuit.num_t,
-            "n_qubits": circuit.n_qubits,
-            "num_2q": circuit.num_2q,
-            "runtime": runtime,
-            "num_internal_h": num_internal_h,
-        })
+            
+            circuit = t_count_optimization(circuit, method=method)
+            runtime = time.time() - tic
+            
+            print(f"{name}, {circuit.num_t}, {circuit.n_qubits}, {circuit.num_2q}, {runtime:.2f}, {num_internal_h}")
+            datas.append({
+                "name": name,
+                "t_count": circuit.num_t,
+                "n_qubits": circuit.n_qubits,
+                "num_2q": circuit.num_2q,
+                "runtime": runtime,
+                "num_internal_h": num_internal_h,
+            })
+        except: continue
+
     df = pd.DataFrame(datas)
     df.to_csv("t_count_optimization_results.csv", index=False)
