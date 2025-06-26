@@ -1,8 +1,9 @@
-from quantumCircuit import QuantumCircuit
-from logicNetwork import LogicNetwork
 import matplotlib.pyplot as plt
 import matplotlib.transforms as mtrans
 import pygraphviz as pgv
+
+from .quantumCircuit import QuantumCircuit
+from .logicNetwork import LogicNetwork
 
 def plot_network(network: LogicNetwork, **kwargs) -> None:
     show_name: bool = kwargs.get("show_name", True)

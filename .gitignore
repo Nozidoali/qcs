@@ -1,3 +1,101 @@
+# ─────────────────────────────────────────────────────────
+#  Python byte-code, caches, venvs
+# ─────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.dylib
+*.dll
+
+# Virtual-env / Poetry / venv folders
+.venv/
+env/
+venv/
+*.egg-info/
+*.egg
+dist/
+build/
+wheelhouse/
+pip-wheel-metadata/
+
+# PyTest / coverage
+htmlcov/
+.coverage
+.cache/
+.pytest_cache/
+.nox/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ─────────────────────────────────────────────────────────
+#  CMake / scikit-build-core build artefacts
+# ─────────────────────────────────────────────────────────
+# (scikit-build-core places its build dir under _skbuild/)
+_skbuild/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+compile_commands.json
+
+# Any out-of-source build dirs you might create
+build*/        # e.g. build/, build-debug/, build-release/
+out*/
+bin/
+lib/
+
+# Compiled objects & static libs
+*.o
+*.obj
+*.a
+*.lib
+
+# Executables
+*.exe
+*.app
+*.out
+
+# Visual Studio / MSVC
+*.pdb
+*.ilk
+*.idb
+*.vcxproj*
+*.sln
+
+# ─────────────────────────────────────────────────────────
+#  Editor / IDE artefacts
+# ─────────────────────────────────────────────────────────
+# VS Code
+.vscode/
+# JetBrains IDEs
+.idea/
+#.clangd, .clang-format, etc.
+.clangd
+.clang-tidy
+.clang-format
+
+# vim / emacs
+*.swp
+*~
+# Sublime
+*.sublime-*
+
+# ─────────────────────────────────────────────────────────
+#  Miscellaneous
+# ─────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.log
+*.csv~
+*.tmp
+*.bak
+
+# ─────────────────────────────────────────────────────────
+#  Miscellaneous
+# ─────────────────────────────────────────────────────────
 .vscode
 __pycache__
 *.png

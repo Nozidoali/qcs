@@ -1,0 +1,33 @@
+[build-system]
+requires = ["scikit-build-core[pybind11]>=0.7", "pybind11>=2.11"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "qcs"
+version = "0.1.0"
+description = "Quantum-Circuit Synthesis toolkit"
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [{ name = "Hanyu Wang" }]
+license = { text = "MIT" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: C++",
+    "License :: OSI Approved :: MIT License",
+]
+
+[project.urls]
+Source = "https://github.com/Nozidoali/qcs"
+
+[tool.scikit-build]
+cmake.source-dir = "qcs/core"
+
+# Show CMake output and status messages
+logging.level = "INFO"
+
+cmake.args = [
+    "-DCMAKE_CXX_STANDARD=20",
+    "-DQCS_VERBOSE=ON"  # optional toggle you can use inside CMakeLists.txt
+]
+
+wheel.expand-macos-universal-tags = true

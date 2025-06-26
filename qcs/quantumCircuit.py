@@ -1,3 +1,27 @@
+ALL_AVAILABLE_GATES = [
+    # CNOT: Controlled-NOT gate (2-qubit)
+    "CNOT",
+    # CZ: Controlled-Z gate (2-qubit)
+    "CZ",
+    # Tof: Toffoli gate (CCX, 3-qubit)
+    "Tof",
+    # HAD: Hadamard gate (1-qubit)
+    "HAD",
+    # S: Phase gate (1-qubit)
+    "S",
+    # T: T gate (pi/8 gate, 1-qubit)
+    "T",
+    # Tdg: T-dagger gate (inverse T, 1-qubit)
+    "Tdg",
+    # X: Pauli-X gate (NOT, 1-qubit)
+    "X",
+    # Z: Pauli-Z gate (1-qubit)
+    "Z",
+    # CCZ: Controlled-Controlled-Z gate (3-qubit)
+    "CCZ",
+]
+
+
 def is_unique(lst: list) -> bool:
     return len(lst) == len(set(lst))
 
@@ -344,3 +368,12 @@ class QuantumCircuit:
     @property
     def last_t(self) -> int:
         return len(self.gates) - next((i for i, gate in enumerate(reversed(self.gates)) if gate["name"] in ["T", "Tdg"]), len(self.gates)) if self.num_t > 0 else 0
+    
+    def t_depth_of(self, qubit: int) -> int:
+        return sum(1 for gate in self.gates if gate["name"] in ["T", "Tdg"] and gate.get("target") == qubit)
+    
+    @property
+    def t_depth(self) -> int:
+        if self.num_t == 0:
+            return 0
+        return max(self.t_depth_of(i) for i in range(self.n_qubits))
