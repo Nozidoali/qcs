@@ -278,7 +278,7 @@ class SlicedCircuit:
         for g in circ.gates[:first_t]:
             sliced.init_circuit.add_gate(g)
 
-        tab = TableauColumnMajor(circ.n_qubits)
+        tab = ColumnMajorTableau(circ.n_qubits)
         poly = PhasePolynomial(circ.n_qubits)
 
         for idx, gate in enumerate(circ.gates):
@@ -310,7 +310,7 @@ class SlicedCircuit:
                 q = gate["target"]
                 if not poly.table and sliced.phase_polynomials:
                     sliced.tableau_vec.append(tab)
-                    tab = TableauColumnMajor(circ.n_qubits)
+                    tab = ColumnMajorTableau(circ.n_qubits)
 
                 poly.table.append(copy.deepcopy(tab.stabs[q].z))
                 if tab.stabs[q].sign:

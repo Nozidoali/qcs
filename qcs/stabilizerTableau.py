@@ -253,7 +253,7 @@ class TableauStabilizer:
     x: BitVector
     sign: bool = False
 
-class TableauColumnMajor:
+class ColumnMajorTableau:
     def __init__(self, n_qubits):
         self.n_qubits = n_qubits
         self.stabs = []

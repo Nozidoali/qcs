@@ -86,7 +86,10 @@ py::object to_python_circuit(const QuantumCircuit& circ) {
 
 py::object dummy_optimization(const py::object& py_circ) {
     QuantumCircuit circ = from_python_circuit(py_circ);
-    return to_python_circuit(circ);
+    QuantumCircuit hadamard_free_circuit = gadgetize_internal_hadamards(circ);
+    core::TOptimizer opt(hadamard_free_circuit.n_qubits);
+    auto optimised = opt.optimize(circ, "TOHPE");
+    return to_python_circuit(hadamard_free_circuit);
 }
 
 } // namespace core

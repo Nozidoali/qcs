@@ -1,11 +1,10 @@
-// ─── gate.hpp ────────────────────────────────────────────────────────────────
 #pragma once
 #include <cstdint>
-#include <type_traits>
+#include <vector>
 
 namespace core {
 
-// ── 1.  gate kinds ────────────────────────────────────────────────────────
+// ── 1.  Gate kinds ────────────────────────────────────────────────────────
 enum class GateType : std::uint8_t {
     X        = 0x01,
     Z        = 0x02,
@@ -20,7 +19,6 @@ enum class GateType : std::uint8_t {
     CZ       = 0x0B,
 };
 
-// ── 2.  bit-layout constants  (LSB-oriented) ───────────────────────────────
 constexpr std::uint8_t TYPE_BITS = 4;
 constexpr std::uint8_t FLAG_BITS = 12;
 constexpr std::uint8_t NEG_BITS  = 1;
@@ -35,65 +33,72 @@ constexpr std::uint8_t Q2_OFF   = N2_OFF + NEG_BITS;
 constexpr std::uint8_t N3_OFF   = Q2_OFF + Q_BITS;
 constexpr std::uint8_t Q3_OFF   = N3_OFF + NEG_BITS;
 
-// ── 3.  tiny helper for masks ──────────────────────────────────────────────
 constexpr std::uint64_t mask(std::uint8_t bits) {
     return (bits == 64) ? ~0ULL : ((1ULL << bits) - 1ULL);
 }
 
-// ── 4.  lightweight wrapper object (8 bytes total) ─────────────────────────
 class Gate {
 public:
-    /* default-construct to zero */
     constexpr Gate() = default;
 
-    /* pack everything in one go (any omitted qubit defaults to “unused”) */
-    constexpr Gate(GateType     t,
-                   std::uint16_t q1, bool n1 = false,
+    constexpr Gate(GateType t, std::uint16_t q1, bool n1 = false,
                    std::uint16_t q2 = 0, bool n2 = false,
                    std::uint16_t q3 = 0, bool n3 = false,
-                   std::uint16_t flag = 0)
-    { pack(t, q1, n1, q2, n2, q3, n3, flag); }
-
-    // raw 64-bit view  (good for I/O or hashing)
-    [[nodiscard]] constexpr std::uint64_t raw() const          { return bits_; }
-    constexpr void                         raw(std::uint64_t v){ bits_ = v;    }
-
-    // ------ strongly-typed getters ------------------------------------
-    [[nodiscard]] constexpr GateType     type()   const { return GateType(bits(TYPE_OFF, TYPE_BITS)); }
-    [[nodiscard]] constexpr std::uint16_t flag()  const { return bits(FLAG_OFF, FLAG_BITS); }
-
-    [[nodiscard]] constexpr bool          neg1()  const { return bits(N1_OFF, NEG_BITS); }
-    [[nodiscard]] constexpr std::uint16_t qubit1()const { return bits(Q1_OFF, Q_BITS);   }
-
-    [[nodiscard]] constexpr bool          neg2()  const { return bits(N2_OFF, NEG_BITS); }
-    [[nodiscard]] constexpr std::uint16_t qubit2()const { return bits(Q2_OFF, Q_BITS);   }
-
-    [[nodiscard]] constexpr bool          neg3()  const { return bits(N3_OFF, NEG_BITS); }
-    [[nodiscard]] constexpr std::uint16_t qubit3()const { return bits(Q3_OFF, Q_BITS);   }
-
-private:
-    std::uint64_t bits_ = 0;          // the only data member (8 bytes)
-
-    /* generic slice helpers */
-    [[nodiscard]] constexpr std::uint64_t bits(std::uint8_t off,
-                                               std::uint8_t len) const
-    { return (bits_ >> off) & mask(len); }
-
-    constexpr void set_bits(std::uint8_t off,
-                            std::uint8_t len,
-                            std::uint64_t v)
-    {
-        bits_ &= ~(mask(len) << off);          // clear target slice
-        bits_ |=  (v & mask(len)) << off;      // store new value
+                   std::uint16_t flag = 0) {
+        pack(t, q1, n1, q2, n2, q3, n3, flag);
     }
 
-    /* pack routine used by the constructor */
-    constexpr void pack(GateType     t,
-                        std::uint16_t q1, bool n1,
+    [[nodiscard]] constexpr std::uint64_t raw() const { return bits_; }
+    constexpr void raw(std::uint64_t v) { bits_ = v; }
+
+    [[nodiscard]] constexpr GateType type() const {
+        return static_cast<GateType>(bits(TYPE_OFF, TYPE_BITS));
+    }
+
+    [[nodiscard]] constexpr std::uint16_t flag() const {
+        return bits(FLAG_OFF, FLAG_BITS);
+    }
+
+    [[nodiscard]] constexpr bool neg1() const {
+        return bits(N1_OFF, NEG_BITS);
+    }
+
+    [[nodiscard]] constexpr std::uint16_t qubit1() const {
+        return bits(Q1_OFF, Q_BITS);
+    }
+
+    [[nodiscard]] constexpr bool neg2() const {
+        return bits(N2_OFF, NEG_BITS);
+    }
+
+    [[nodiscard]] constexpr std::uint16_t qubit2() const {
+        return bits(Q2_OFF, Q_BITS);
+    }
+
+    [[nodiscard]] constexpr bool neg3() const {
+        return bits(N3_OFF, NEG_BITS);
+    }
+
+    [[nodiscard]] constexpr std::uint16_t qubit3() const {
+        return bits(Q3_OFF, Q_BITS);
+    }
+
+private:
+    std::uint64_t bits_ = 0;
+
+    [[nodiscard]] constexpr std::uint64_t bits(std::uint8_t off, std::uint8_t len) const {
+        return (bits_ >> off) & mask(len);
+    }
+
+    constexpr void set_bits(std::uint8_t off, std::uint8_t len, std::uint64_t v) {
+        bits_ &= ~(mask(len) << off);
+        bits_ |= (v & mask(len)) << off;
+    }
+
+    constexpr void pack(GateType t, std::uint16_t q1, bool n1,
                         std::uint16_t q2, bool n2,
                         std::uint16_t q3, bool n3,
-                        std::uint16_t flag)
-    {
+                        std::uint16_t flag) {
         set_bits(TYPE_OFF, TYPE_BITS, static_cast<std::uint64_t>(t));
         set_bits(FLAG_OFF, FLAG_BITS, flag);
         set_bits(N1_OFF,   NEG_BITS,  n1);
@@ -105,7 +110,9 @@ private:
     }
 };
 
-// compile-time guarantee: still exactly 8 bytes
 static_assert(sizeof(Gate) == 8, "Gate must stay 64-bit packed");
+
+bool is_t(const Gate& gate);
+Gate map_qubits(const Gate& gate, const std::vector<std::uint32_t>& mapping);
 
 } // namespace core

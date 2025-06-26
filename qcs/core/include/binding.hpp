@@ -5,6 +5,9 @@
 #include <pybind11/stl.h>
 #include "circuit.hpp"
 #include "gate.hpp"
+#include "gadgetization.hpp"
+#include "hadamardOptimization.hpp"
+#include "tOptimizer.hpp"
 
 namespace core {
 
