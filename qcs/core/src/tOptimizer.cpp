@@ -1,5 +1,6 @@
 #include "tOptimizer.hpp"
 #include <stdexcept>
+#include <iostream>
 
 namespace core {
 
@@ -14,20 +15,28 @@ TOptimizer::TOptimizer(std::size_t n_qubits)
 void TOptimizer::flush_poly(QuantumCircuit& out) {
     if (poly_.rows().empty()) return;
 
-    auto old_tbl = poly_.rows();                         // snapshot
+    const std::vector<BitVector>& old_tableau = poly_.rows();                         // snapshot
     /* run chosen optimiser */
     //  -- plug in whichever one you need later in optimise()
-
     // placeholder, optimiser will be applied in optimise()
 
-    out += poly_.clifford_correction(old_tbl, n_).to_circ(false);
+    // print the phase polynomial for debugging
+    for (const auto& row : old_tableau) {
+        std::cout << "Phase Polynomial Row: " << row.to_string() << std::endl;
+    }
+
+    out += poly_.clifford_correction(old_tableau, n_).to_circ(false);
     out += poly_.to_circ();
+
+    // reset the phase polynomial
     poly_ = PhasePolynomial(n_);
     emitted_poly_sections_ = true;
 }
 
 void TOptimizer::flush_tableau(QuantumCircuit& out) {
     out += tab_.to_row_major().to_circ(true);
+
+    // we reset the tableau after flushing
     tab_ = ColumnMajorTableau(n_);
 }
 
@@ -70,7 +79,7 @@ QuantumCircuit TOptimizer::optimize(const QuantumCircuit& circ,
             break;
         }
         case GateType::CNOT:
-            tab_.prepend_cx(g.qubit1(), g.qubit2());
+            tab_.prepend_cx(g.qubit2(), g.qubit1());
             break;
 
         /* ── T / Td : collect phase-poly rows ─────────── */
@@ -81,8 +90,10 @@ QuantumCircuit TOptimizer::optimize(const QuantumCircuit& circ,
             if (poly_.rows().empty() && emitted_poly_sections_)
                 flush_tableau(out);
 
-            poly_.add_row(tab_.stab(q).z);      // record Z mask
-            if (tab_.stab(q).sign) {            // fold sign
+            std::cout << "row" << tab_.stabilizer(q).to_string() << std::endl;
+
+            poly_.add_row(tab_.stabilizer(q).z);      // record Z mask
+            if (tab_.stabilizer(q).sign) {            // fold sign
                 tab_.prepend_s(q);
                 tab_.prepend_z(q);
             }
@@ -91,6 +102,10 @@ QuantumCircuit TOptimizer::optimize(const QuantumCircuit& circ,
         default:
             throw std::runtime_error("TOptimizer: unsupported gate");
         }
+
+        // print the table for debugging
+        std::cout << "Gate: " << g.to_string() << std::endl;
+        std::cout << tab_.to_row_major().to_string() << std::endl;
     }
 
     /* flush tail */

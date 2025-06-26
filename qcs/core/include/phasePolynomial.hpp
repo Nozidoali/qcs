@@ -1,6 +1,6 @@
 #pragma once
 #include "bitvector.hpp"
-#include "tableau.hpp"
+#include "rowMajorTableau.hpp"
 #include "circuit.hpp"          // QuantumCircuit
 #include <vector>
 
@@ -8,7 +8,7 @@ namespace core {
 
 /**
  * Stores a list of Z-mask rows (phase polynomial) and can:
- *  1.  produce the Clifford correction Tableau
+ *  1.  produce the Clifford correction RowMajorTableau
  *  2.  translate itself into a T+CX circuit
  */
 class PhasePolynomial {
@@ -18,8 +18,8 @@ public:
     /* add a row (length ≥ n_qubits) */
     void        add_row(const BitVector& row) { table_.push_back(row); }
 
-    /* build Tableau that fixes Clifford phase vs. reference table */
-    Tableau     clifford_correction(const std::vector<BitVector>& ref,
+    /* build RowMajorTableau that fixes Clifford phase vs. reference table */
+    RowMajorTableau     clifford_correction(const std::vector<BitVector>& ref,
                                     std::size_t n_qubits) const;
 
     /* emit (CX,T) circuit that realises the phase polynomial */

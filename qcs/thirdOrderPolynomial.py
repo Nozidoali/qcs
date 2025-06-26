@@ -395,8 +395,8 @@ def implement_tof(tab, cols, h_gate: bool) -> QuantumCircuit:
     p1.z.xor(p2.z); p1.sign ^= p2.sign ^ True; qc.append(implement_pauli_z_rotation_from_pauli_product(tab, p1))
     return qc
 
-def h_opt_reverse(c_in: QuantumCircuit) -> Tableau:
-    tab = Tableau(c_in.n_qubits)
+def h_opt_reverse(c_in: QuantumCircuit) -> RowMajorTableau:
+    tab = RowMajorTableau(c_in.n_qubits)
     for gate in c_in.gates:
         name, q = gate["name"], gate
         if name == "HAD":
@@ -479,7 +479,7 @@ def diagonalize_tof(tab, cols, h_gate):
 
 
 def reverse_diagonalization(c_in):
-    tab = Tableau(c_in.n_qubits)
+    tab = RowMajorTableau(c_in.n_qubits)
     for gate, q in c_in.circ:
         if gate == "h":
             tab.prepend_h(q[0])

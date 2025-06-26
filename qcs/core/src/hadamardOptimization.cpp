@@ -5,9 +5,9 @@ namespace core {
 
     
 
-Tableau tableau_from_circ(const QuantumCircuit& circ)
+RowMajorTableau tableau_from_circ(const QuantumCircuit& circ)
 {
-    Tableau tab(circ.n_qubits);
+    RowMajorTableau tab(circ.n_qubits);
 
     /* -------- 1.  forward scan (Clifford gates only) -------- */
     for (const Gate& g : circ.gates) {
@@ -60,7 +60,7 @@ Tableau tableau_from_circ(const QuantumCircuit& circ)
  * ============================================================= */
 QuantumCircuit internal_h_opt(const QuantumCircuit& c_in)
 {
-    Tableau tab = tableau_from_circ(c_in);
+    RowMajorTableau tab = tableau_from_circ(c_in);
     std::cout << tab.to_string() << std::endl;
 
     /*  Build first half circuit */

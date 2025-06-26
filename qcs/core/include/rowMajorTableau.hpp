@@ -6,9 +6,9 @@
 
 namespace core {
 
-class Tableau {
+class RowMajorTableau {
 public:
-    explicit Tableau(std::size_t n_qubits);
+    explicit RowMajorTableau(std::size_t n_qubits);
 
     /* -------- Clifford append (right-multiply) -------- */
     void append_x (std::size_t q);

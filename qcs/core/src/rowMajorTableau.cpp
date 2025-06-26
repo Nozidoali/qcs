@@ -1,18 +1,18 @@
-#include "tableau.hpp"
+#include "rowMajorTableau.hpp"
 #include <algorithm>
 #include <sstream>
 
 namespace core {
 
 /* ---- helper: |pos⟩ unit bitvector ---- */
-BitVector Tableau::unit_vector(std::size_t pos, std::size_t len) {
+BitVector RowMajorTableau::unit_vector(std::size_t pos, std::size_t len) {
     BitVector bv(len);
     bv.xor_bit(pos);
     return bv;
 }
 
 /* ---- ctor ---- */
-Tableau::Tableau(std::size_t n_qubits)
+RowMajorTableau::RowMajorTableau(std::size_t n_qubits)
     : n_(n_qubits),
       z_(n_qubits),
       x_(n_qubits),
@@ -28,28 +28,28 @@ Tableau::Tableau(std::size_t n_qubits)
 /* ------------------------------------------------------------------ *
  *  Append (gate acts on RHS)                                         *
  * ------------------------------------------------------------------ */
-void Tableau::append_x(std::size_t q) { signs_.xor_with(z_[q]); }
-void Tableau::append_z(std::size_t q) { signs_.xor_with(x_[q]); }
+void RowMajorTableau::append_x(std::size_t q) { signs_.xor_with(z_[q]); }
+void RowMajorTableau::append_z(std::size_t q) { signs_.xor_with(x_[q]); }
 
-void Tableau::append_v(std::size_t q) {
+void RowMajorTableau::append_v(std::size_t q) {
     BitVector a = x_[q]; a.negate();
     a.and_with(z_[q]);
     signs_.xor_with(a);
     x_[q].xor_with(z_[q]);
 }
 
-void Tableau::append_s(std::size_t q) {
+void RowMajorTableau::append_s(std::size_t q) {
     BitVector a = z_[q];
     a.and_with(x_[q]);
     signs_.xor_with(a);
     z_[q].xor_with(x_[q]);
 }
 
-void Tableau::append_h(std::size_t q) {
+void RowMajorTableau::append_h(std::size_t q) {
     append_s(q); append_v(q); append_s(q);
 }
 
-void Tableau::append_cx(std::size_t ctrl, std::size_t targ) {
+void RowMajorTableau::append_cx(std::size_t ctrl, std::size_t targ) {
     BitVector a  = z_[ctrl];  a.negate();
     a.xor_with(x_[targ]);
     a.and_with(z_[targ]);
@@ -60,7 +60,7 @@ void Tableau::append_cx(std::size_t ctrl, std::size_t targ) {
     x_[targ].xor_with(x_[ctrl]);
 }
 
-void Tableau::append_cz(std::size_t q1, std::size_t q2) {
+void RowMajorTableau::append_cz(std::size_t q1, std::size_t q2) {
     append_s(q1);
     append_s(q2);
     append_cx(q1, q2);
@@ -72,7 +72,7 @@ void Tableau::append_cz(std::size_t q1, std::size_t q2) {
 /* ------------------------------------------------------------------ *
  *  Extract / insert Pauli products                                   *
  * ------------------------------------------------------------------ */
-PauliProduct Tableau::extract_pauli_product(std::size_t col) const {
+PauliProduct RowMajorTableau::extract_pauli_product(std::size_t col) const {
     BitVector zmask(n_), xmask(n_);
     for (std::size_t i = 0; i < n_; ++i) {
         if (z_[i].get(col)) zmask.xor_bit(i);
@@ -81,7 +81,7 @@ PauliProduct Tableau::extract_pauli_product(std::size_t col) const {
     return PauliProduct(std::move(zmask), std::move(xmask), signs_.get(col));
 }
 
-void Tableau::insert_pauli_product(const PauliProduct& p, std::size_t col) {
+void RowMajorTableau::insert_pauli_product(const PauliProduct& p, std::size_t col) {
     for (std::size_t i = 0; i < n_; ++i) {
         if (p.z.get(i) != z_[i].get(col)) z_[i].xor_bit(col);
         if (p.x.get(i) != x_[i].get(col)) x_[i].xor_bit(col);
@@ -92,24 +92,24 @@ void Tableau::insert_pauli_product(const PauliProduct& p, std::size_t col) {
 /* ------------------------------------------------------------------ *
  *  Prepend (gate acts on LHS)                                        *
  * ------------------------------------------------------------------ */
-void Tableau::prepend_x(std::size_t q) { signs_.xor_bit(q); }
-void Tableau::prepend_z(std::size_t q) { signs_.xor_bit(q + n_); }
+void RowMajorTableau::prepend_x(std::size_t q) { signs_.xor_bit(q); }
+void RowMajorTableau::prepend_z(std::size_t q) { signs_.xor_bit(q + n_); }
 
-void Tableau::prepend_s(std::size_t q) {
-    auto stab   = extract_pauli_product(q);
+void RowMajorTableau::prepend_s(std::size_t q) {
+    auto stabilizer   = extract_pauli_product(q);
     auto destab = extract_pauli_product(q + n_);
-    destab.pauli_product_mult(stab);
+    destab.pauli_product_mult(stabilizer);
     insert_pauli_product(destab, q + n_);
 }
 
-void Tableau::prepend_h(std::size_t q) {
-    auto stab   = extract_pauli_product(q);
+void RowMajorTableau::prepend_h(std::size_t q) {
+    auto stabilizer   = extract_pauli_product(q);
     auto destab = extract_pauli_product(q + n_);
     insert_pauli_product(destab, q);
-    insert_pauli_product(stab,   q + n_);
+    insert_pauli_product(stabilizer,   q + n_);
 }
 
-void Tableau::prepend_cx(std::size_t ctrl, std::size_t targ) {
+void RowMajorTableau::prepend_cx(std::size_t ctrl, std::size_t targ) {
     auto stab_c   = extract_pauli_product(ctrl);
     auto stab_t   = extract_pauli_product(targ);
     auto dest_c   = extract_pauli_product(ctrl + n_);
@@ -126,7 +126,7 @@ void Tableau::prepend_cx(std::size_t ctrl, std::size_t targ) {
 /* ----------------------------------------------------------- *
  *  I / X / Y / Z pretty-printer for the tableau                *
  * ----------------------------------------------------------- */
-std::string Tableau::to_string() const
+std::string RowMajorTableau::to_string() const
 {
     const auto pauli_char = [](bool z, bool x) -> char {
         return z ? (x ? 'Y' : 'Z')         // Z=1
@@ -163,12 +163,12 @@ std::string Tableau::to_string() const
 }
 
 /* =========================================================== *
- *  Tableau ➜ QuantumCircuit                                   *
+ *  RowMajorTableau ➜ QuantumCircuit                                   *
  * =========================================================== */
-QuantumCircuit Tableau::to_circ(bool inverse) const
+QuantumCircuit RowMajorTableau::to_circ(bool inverse) const
 {
     /* Work on a mutable copy */
-    Tableau tab(*this);
+    RowMajorTableau tab(*this);
     std::size_t nq = n_;
 
     QuantumCircuit qc;  qc.request_qubits(nq);

@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <vector>
-
+#include <string>
 namespace core {
 
 // ── 1.  Gate kinds ────────────────────────────────────────────────────────
@@ -63,25 +63,45 @@ public:
         return bits(N1_OFF, NEG_BITS);
     }
 
+    /**
+     * Returns the first qubit index, depending on the gate type.
+     * - For single-qubit gates, this is 0.
+     * - For two-qubit gates, this is the target qubit index.
+     * - For three-qubit gates, this is the target qubit index.
+     */
     [[nodiscard]] constexpr std::uint16_t qubit1() const {
         return bits(Q1_OFF, Q_BITS);
     }
-
+    
     [[nodiscard]] constexpr bool neg2() const {
         return bits(N2_OFF, NEG_BITS);
     }
-
+    
+    /**
+     * Returns the first qubit index, depending on the gate type.
+     * - For single-qubit gates, this is 0.
+     * - For two-qubit gates, this is the control qubit index.
+     * - For three-qubit gates, this is the first control qubit index.
+     */
     [[nodiscard]] constexpr std::uint16_t qubit2() const {
         return bits(Q2_OFF, Q_BITS);
     }
-
+    
     [[nodiscard]] constexpr bool neg3() const {
         return bits(N3_OFF, NEG_BITS);
     }
-
+    
+    /**
+     * Returns the first qubit index, depending on the gate type.
+     * - For single-qubit gates, this is 0.
+     * - For two-qubit gates, this is the 0.
+     * - For three-qubit gates, this is the second control qubit index.
+     */
     [[nodiscard]] constexpr std::uint16_t qubit3() const {
         return bits(Q3_OFF, Q_BITS);
     }
+
+    std::string to_string() const;
 
 private:
     std::uint64_t bits_ = 0;
@@ -114,5 +134,6 @@ static_assert(sizeof(Gate) == 8, "Gate must stay 64-bit packed");
 
 bool is_t(const Gate& gate);
 Gate map_qubits(const Gate& gate, const std::vector<std::uint32_t>& mapping);
+std::string gate_type_to_string(GateType type);
 
 } // namespace core

@@ -21,7 +21,7 @@ public:
     std::size_t     request_qubit();
     void            request_qubits(std::size_t count);   // NEW: allocate many at once
 
-    /* ---------- gate helpers used by PhasePolynomial / Tableau ---------- */
+    /* ---------- gate helpers used by PhasePolynomial / RowMajorTableau ---------- */
     void add_cnot(std::uint16_t ctrl,  std::uint16_t targ);
     void add_t   (std::uint16_t targ);
     void add_s   (std::uint16_t targ);

@@ -60,10 +60,10 @@ void ColumnMajorTableau::prepend_cx(std::size_t ctrl, std::size_t targ) {
 }
 
 /* ------------------------------------------------------------------ *
- *  Convert to row-major Tableau                                       *
+ *  Convert to row-major RowMajorTableau                                       *
  * ------------------------------------------------------------------ */
-Tableau ColumnMajorTableau::to_row_major() const {
-    Tableau tab(n_);
+RowMajorTableau ColumnMajorTableau::to_row_major() const {
+    RowMajorTableau tab(n_);
     for (std::size_t i = 0; i < n_; ++i) {
         PauliProduct p(
             stabs_[i].z,               // already length n_

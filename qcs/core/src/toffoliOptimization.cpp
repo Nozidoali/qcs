@@ -10,7 +10,7 @@ static void concat(QuantumCircuit& dst, const QuantumCircuit& src) {
 /* ------------------------------------------------------------- *
  *        implement_tof                                          *
  * ------------------------------------------------------------- */
-QuantumCircuit implement_tof(Tableau& tab,
+QuantumCircuit implement_tof(RowMajorTableau& tab,
                              const std::array<std::uint16_t,3>& cols,
                              bool h_gate)
 {

@@ -31,14 +31,14 @@ static std::size_t count_single(const std::vector<BitVector>& tbl,
 }
 
 /* ------------------------------------------------------------------ *
- *  Tableau correction                                                *
+ *  RowMajorTableau correction                                                *
  * ------------------------------------------------------------------ */
-Tableau PhasePolynomial::clifford_correction(const std::vector<BitVector>& ref,
+RowMajorTableau PhasePolynomial::clifford_correction(const std::vector<BitVector>& ref,
                                              std::size_t nq) const
 {
     assert(nq == n_ && "qubit mismatch");
 
-    Tableau tab(nq);
+    RowMajorTableau tab(nq);
 
     /* pair-wise CZ phase fix */
     for (std::size_t i = 0; i < nq; ++i) {

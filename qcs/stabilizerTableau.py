@@ -101,7 +101,7 @@ class PauliProduct:
 
         self.sign ^= other.sign ^ (((ac.popcount() + 2 * x1z2.popcount()) % 4) > 1)
         
-class Tableau:
+class RowMajorTableau:
     def __init__(self, n_qubits):
         self.n_qubits = n_qubits
         self.z = [self.unit_vector(i, n_qubits << 1) for i in range(n_qubits)]
@@ -171,16 +171,16 @@ class Tableau:
     def prepend_z(self, qubit): self.signs.xor_bit(qubit + self.n_qubits)
 
     def prepend_s(self, qubit):
-        stab = self.extract_pauli_product(qubit)
+        stabilizer = self.extract_pauli_product(qubit)
         destab = self.extract_pauli_product(qubit + self.n_qubits)
-        destab.pauli_product_mult(stab)
+        destab.pauli_product_mult(stabilizer)
         self.insert_pauli_product(destab, qubit + self.n_qubits)
 
     def prepend_h(self, qubit):
-        stab = self.extract_pauli_product(qubit)
+        stabilizer = self.extract_pauli_product(qubit)
         destab = self.extract_pauli_product(qubit + self.n_qubits)
         self.insert_pauli_product(destab, qubit)
-        self.insert_pauli_product(stab, qubit + self.n_qubits)
+        self.insert_pauli_product(stabilizer, qubit + self.n_qubits)
 
     def prepend_cx(self, qubits):
         stab_ctrl = self.extract_pauli_product(qubits[0])
@@ -264,47 +264,47 @@ class ColumnMajorTableau:
             self.stabs.append(TableauStabilizer(z, x, False))
 
     def prepend_x(self, qubit):
-        for stab in self.stabs:
-            if stab.z.get(qubit):
-                stab.sign ^= True
+        for stabilizer in self.stabs:
+            if stabilizer.z.get(qubit):
+                stabilizer.sign ^= True
 
     def prepend_z(self, qubit):
-        for stab in self.stabs:
-            if stab.x.get(qubit):
-                stab.sign ^= True
+        for stabilizer in self.stabs:
+            if stabilizer.x.get(qubit):
+                stabilizer.sign ^= True
 
     def prepend_s(self, qubit):
-        for stab in self.stabs:
-            if stab.z.get(qubit) and stab.x.get(qubit):
-                stab.sign ^= True
-            if stab.x.get(qubit):
-                stab.z.xor_bit(qubit)
+        for stabilizer in self.stabs:
+            if stabilizer.z.get(qubit) and stabilizer.x.get(qubit):
+                stabilizer.sign ^= True
+            if stabilizer.x.get(qubit):
+                stabilizer.z.xor_bit(qubit)
 
     def prepend_h(self, qubit):
-        for stab in self.stabs:
-            zq, xq = stab.z.get(qubit), stab.x.get(qubit)
+        for stabilizer in self.stabs:
+            zq, xq = stabilizer.z.get(qubit), stabilizer.x.get(qubit)
             if zq and xq:
-                stab.sign ^= True
+                stabilizer.sign ^= True
             # Swap z and x at qubit
             if zq != xq:
-                stab.z.xor_bit(qubit)
-                stab.x.xor_bit(qubit)
+                stabilizer.z.xor_bit(qubit)
+                stabilizer.x.xor_bit(qubit)
 
     def prepend_cx(self, qubits):
         ctrl, targ = qubits
-        for stab in self.stabs:
-            if stab.z.get(ctrl) and stab.x.get(targ):
-                stab.sign ^= True
-            if stab.z.get(targ):
-                stab.z.xor_bit(ctrl)
-            if stab.x.get(ctrl):
-                stab.x.xor_bit(targ)
+        for stabilizer in self.stabs:
+            if stabilizer.z.get(ctrl) and stabilizer.x.get(targ):
+                stabilizer.sign ^= True
+            if stabilizer.z.get(targ):
+                stabilizer.z.xor_bit(ctrl)
+            if stabilizer.x.get(ctrl):
+                stabilizer.x.xor_bit(targ)
 
     def to_circ(self, inverse=False):
-        tab = Tableau(self.n_qubits)
-        for i, stab in enumerate(self.stabs):
+        tab = RowMajorTableau(self.n_qubits)
+        for i, stabilizer in enumerate(self.stabs):
             tab.insert_pauli_product(
-                PauliProduct(copy.deepcopy(stab.z), copy.deepcopy(stab.x), stab.sign),
+                PauliProduct(copy.deepcopy(stabilizer.z), copy.deepcopy(stabilizer.x), stabilizer.sign),
                 i
             )
         return tab.to_circ(inverse)
@@ -315,7 +315,7 @@ class PhasePolynomial:
         self.table = []
 
     def clifford_correction(self, table, n_qubits):
-        tab = Tableau(n_qubits)
+        tab = RowMajorTableau(n_qubits)
         for i in range(n_qubits):
             for j in range(i + 1, n_qubits):
                 z1 = sum(1 for k in range(len(table)) if table[k].get(i) and table[k].get(j))

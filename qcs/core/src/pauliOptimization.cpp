@@ -14,7 +14,7 @@ static inline void concat(QuantumCircuit& dst, const QuantumCircuit& src)
  *  1) Z-rotation from explicit PauliProduct                      *
  * ------------------------------------------------------------- */
 QuantumCircuit implement_pauli_z_rotation_from_pauli_product(
-        const Tableau& tab, const PauliProduct& p)
+        const RowMajorTableau& tab, const PauliProduct& p)
 {
     std::size_t nq = tab.n_qubits();
     QuantumCircuit qc;  qc.request_qubits(nq);
@@ -42,7 +42,7 @@ QuantumCircuit implement_pauli_z_rotation_from_pauli_product(
 /* ------------------------------------------------------------- *
  *  2) Z-rotation specified by tableau column                     *
  * ------------------------------------------------------------- */
-QuantumCircuit implement_pauli_z_rotation(const Tableau& tab, std::size_t col)
+QuantumCircuit implement_pauli_z_rotation(const RowMajorTableau& tab, std::size_t col)
 {
     std::size_t nq = tab.n_qubits();
     QuantumCircuit qc;  qc.request_qubits(nq);
@@ -71,7 +71,7 @@ QuantumCircuit implement_pauli_z_rotation(const Tableau& tab, std::size_t col)
 /* ------------------------------------------------------------- *
  *  3) Full Pauli rotation on tableau column (mutates tab)        *
  * ------------------------------------------------------------- */
-QuantumCircuit implement_pauli_rotation(Tableau& tab, std::size_t col)
+QuantumCircuit implement_pauli_rotation(RowMajorTableau& tab, std::size_t col)
 {
     std::size_t nq = tab.n_qubits();
     QuantumCircuit qc;  qc.request_qubits(nq);
