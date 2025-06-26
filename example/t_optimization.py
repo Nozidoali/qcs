@@ -7,7 +7,10 @@ import qcs
 circuit = qcs.QuantumCircuit.from_file(qcfile)
 circuit_opt = qcs.dummy_optimization(circuit)
 
-print("Original Circuit:")
-print(circuit.num_t)
-print("\nOptimized Circuit:")
-print(circuit_opt.num_t)
+from rich.pretty import pprint
+
+pprint(circuit_opt.to_json())
+
+
+qcs.plot_circuit(circuit, fn="original_circuit.png")
+qcs.plot_circuit(circuit_opt, fn="optimized_circuit.png")
