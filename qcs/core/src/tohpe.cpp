@@ -178,14 +178,14 @@ void tohpe(const std::vector<BitVector>& original, std::vector<BitVector>& table
 
     /* ========== main optimisation loop ========== */
     while (true) {
-        std::cout << "Matrix:" << std::endl;
-        for (const auto& row : matrix) {
-            std::cout << row.to_string() << std::endl;
-        }
-        std::cout << "Augmented:" << std::endl;
-        for (const auto& row : augmented) {
-            std::cout << row.to_string() << std::endl;
-        }
+        // std::cout << "Matrix:" << std::endl;
+        // for (const auto& row : matrix) {
+        //     std::cout << row.to_string() << std::endl;
+        // }
+        // std::cout << "Augmented:" << std::endl;
+        // for (const auto& row : augmented) {
+        //     std::cout << row.to_string() << std::endl;
+        // }
 
         auto res = kernel(matrix, augmented, pivots);
         if (!res) {
@@ -194,15 +194,15 @@ void tohpe(const std::vector<BitVector>& original, std::vector<BitVector>& table
         }
         BitVector y = *res;  // the new kernel vector
 
-        std::cout << "Kernel vector: " << y.to_string() << std::endl;
-        std::cout << "Matrix after:" << std::endl;
-        for (const auto& row : matrix) {
-            std::cout << row.to_string() << std::endl;
-        }
-        std::cout << "Augmented after:" << std::endl;
-        for (const auto& row : augmented) {
-            std::cout << row.to_string() << std::endl;
-        }
+        // std::cout << "Kernel vector: " << y.to_string() << std::endl;
+        // std::cout << "Matrix after:" << std::endl;
+        // for (const auto& row : matrix) {
+        //     std::cout << row.to_string() << std::endl;
+        // }
+        // std::cout << "Augmented after:" << std::endl;
+        // for (const auto& row : augmented) {
+        //     std::cout << row.to_string() << std::endl;
+        // }
 
         /* --------  score potential reductions  -------- */
         std::unordered_map<uint64_t,int> score;
@@ -235,7 +235,9 @@ void tohpe(const std::vector<BitVector>& original, std::vector<BitVector>& table
         uint64_t best_key = 0;
         int      best_val = 0;
         for (auto& [k,v] : score) {
-            std::cout << "z_: " << k << ", Value: " << v << std::endl;
+
+            // std::cout << "z_: " << k << ", Value: " << v << std::endl;
+            
             if (v > best_val || (v == best_val && k < best_key)) {
                 best_key = k; best_val = v;
             }
@@ -243,7 +245,7 @@ void tohpe(const std::vector<BitVector>& original, std::vector<BitVector>& table
             
         if (best_val <= 0) break;
         BitVector z = BitVector::from_integer(best_key, length);
-        std::cout << "z = " << z.to_string() << std::endl;
+        // std::cout << "z = " << z.to_string() << std::endl;
 
         /* to_update marks rows affected by the kernel vector y */
         auto to_update = y.get_boolean_vec();                 // length = rows
@@ -257,14 +259,14 @@ void tohpe(const std::vector<BitVector>& original, std::vector<BitVector>& table
             augmented.emplace_back(e);
             to_update.push_back(true);                        // mark new row
 
-            std::cout << "Matrix after padding:" << std::endl;
-            for (const auto& row : matrix) {
-                std::cout << row.to_string() << std::endl;
-            }
-            std::cout << "Augmented after padding:" << std::endl;
-            for (const auto& row : augmented) {
-                std::cout << row.to_string() << std::endl;
-            }
+            // std::cout << "Matrix after padding:" << std::endl;
+            // for (const auto& row : matrix) {
+            //     std::cout << row.to_string() << std::endl;
+            // }
+            // std::cout << "Augmented after padding:" << std::endl;
+            // for (const auto& row : augmented) {
+            //     std::cout << row.to_string() << std::endl;
+            // }
         }
 
         /* rows to be XOR-updated with z */

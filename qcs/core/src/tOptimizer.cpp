@@ -18,17 +18,17 @@ void TOptimizer::flush_poly(QuantumCircuit& out) {
     std::vector<BitVector> old_tableau = poly_.rows();
 
     // print the phase polynomial for debugging
-    for (const auto& row : old_tableau) {
-        std::cout << row.to_string() << std::endl;
-    }
+    // for (const auto& row : old_tableau) {
+    //     std::cout << row.to_string() << std::endl;
+    // }
 
     // use tohpe to optimise the phase polynomial
     tohpe(old_tableau, poly_.get_rows(), n_); 
 
-    std::cout << "Optimised Phase Polynomial:" << std::endl;
-    for (const auto& row : poly_.rows()) {
-        std::cout << row.to_string() << std::endl;
-    }
+    // std::cout << "Optimised Phase Polynomial:" << std::endl;
+    // for (const auto& row : poly_.rows()) {
+    //     std::cout << row.to_string() << std::endl;
+    // }
 
     out += poly_.clifford_correction(old_tableau, n_).to_circ();
     out += poly_.to_circ();
