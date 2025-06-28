@@ -14,7 +14,6 @@ c_circuit_opt = qcs.t_opt(circuit)
 # from rich.pretty import pprint
 # pprint(c_circuit_opt.to_json())
 
-
 qcs.plot_circuit(circuit, fn="original_circuit.png")
 qcs.plot_circuit(c_circuit_opt, fn="c_optimized_circuit.png")
 qcs.plot_circuit(py_circuit_opt, fn="py_optimized_circuit.png")

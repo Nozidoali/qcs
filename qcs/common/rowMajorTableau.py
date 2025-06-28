@@ -64,6 +64,8 @@ class PauliProduct:
 class RowMajorTableau:
     r"""
     Row-major stabiliser tableau (Aaronson-Gottesman encoding).
+    
+    Reference: https://www.scottaaronson.com/papers/chp6.pdf
 
     This structure represents *any* \(n\)-qubit Clifford unitary or stabiliser
     state using two \(n \times 2n\) binary matrices **Z** and **X** plus a
@@ -104,8 +106,8 @@ class RowMajorTableau:
     ... )
     >>> print(tab)
     RowMajorTableau  (n=2)
-     0 | Z 0010 | X 1000
-     1 | Z 0001 | X 0100
+        0 | Z 0010 | X 1000
+        1 | Z 0001 | X 0100
     signs : 0000
 
     Columns 0-1 are X₀, X₁ (destabilisers); columns 2-3 are Z₀, Z₁
@@ -113,8 +115,7 @@ class RowMajorTableau:
 
     Gate Updates
     ------------
-    * **H(q)**: swap Z and X bits in column block *q*, toggle sign where both
-      bits were 1.  
+    * **H(q)**: swap Z and X bits in column block *q*, toggle sign where both bits were 1.  
     * **S(q)**: Z_bits ^= X_bits in column block *q*, toggle sign on (X∧Z).  
     * **CX(c,t)**: X_t ^= X_c, Z_c ^= Z_t, update sign on specific overlap.
 
