@@ -1,4 +1,6 @@
-def t_opt(circuit):
+from qcs.common import QuantumCircuit, RowMajorTableau
+
+def t_opt(circuit: QuantumCircuit) -> QuantumCircuit:
     """
     Optimize T-count of a quantum circuit using the specified method.
     
@@ -13,7 +15,7 @@ def t_opt(circuit):
     from ._core import dummy_optimization
     return dummy_optimization(circuit)
 
-def to_tableau(circuit):
+def to_tableau(circuit: QuantumCircuit) -> RowMajorTableau:
     """
     Convert a quantum circuit to a tableau representation.
     
@@ -26,7 +28,7 @@ def to_tableau(circuit):
     from ._core import tableau_from_circuit
     return tableau_from_circuit(circuit)
 
-def from_tableau(tableau):
+def from_tableau(tableau: RowMajorTableau) -> QuantumCircuit:
     """
     Convert a tableau representation back to a quantum circuit.
     

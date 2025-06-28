@@ -9,11 +9,11 @@ if(QCS_VERBOSE)
     message(STATUS "🧩 Pybind11 include path: ${pybind11_INCLUDE_DIRS}")
     message(STATUS "🔧 Building QCS core using C++${CMAKE_CXX_STANDARD}")
 endif()
-
-file(GLOB SRC CONFIGURE_DEPENDS src/*.cpp)
+file(GLOB SRC CONFIGURE_DEPENDS src/*.cpp bindings/*.cpp)
 
 pybind11_add_module(_core ${SRC})
 target_include_directories(_core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(_core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/api)
 target_compile_features(_core PRIVATE cxx_std_20)
 
 # ✅ Install the compiled module to qcs/core

@@ -30,6 +30,7 @@ public:
     /* ---------- NEW lightweight getters ---------- */
     const BitVector& z_row(std::size_t i) const { return z_[i]; }
     const BitVector& x_row(std::size_t i) const { return x_[i]; }
+    const BitVector& signs() const { return signs_; }
     bool             sign_bit(std::size_t col) const { return signs_.get(col); }
 
     /* -------- Pauli extraction / insertion -------- */

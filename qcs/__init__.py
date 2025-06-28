@@ -9,6 +9,7 @@ This package combines:
 
 from .common                import *   # noqa: F401,F403
 from .core                  import *   # noqa: F401,F403
+
 from .circuitExtract        import *   # noqa: F401,F403
 from .visualization         import *   # noqa: F401,F403
-from .thirdOrderPolynomial  import *   # noqa: F401,F403
+from .tohpe                 import *   # noqa: F401,F403

@@ -17,9 +17,6 @@ QuantumCircuit from_python_circuit(const pybind11::object& py_circ);
 // Convert from C++ QuantumCircuit to Python QuantumCircuit object
 pybind11::object to_python_circuit(const QuantumCircuit& circ);
 
-/* Build a core::BitVector from a "01" string. */
-BitVector make_bitvec(const std::string& bits);
-
 /* Convert a Python tableau (SimpleTableau or (z_rows, x_rows, signs) tuple)
    into a fully-constructed core::RowMajorTableau. */
 RowMajorTableau tableau_from_py(const pybind11::object& src);
@@ -35,5 +32,11 @@ pybind11::object tableau_to_circuit(const pybind11::object& src);
 
 // get the tableau of a Python circuit
 pybind11::object tableau_from_circuit(const pybind11::object& src);
+
+/// Convert a Python BitVector (expects get_boolean_vec()) to C++ core::BitVector.
+BitVector bitvector_from_python(const pybind11::object& py_bv);
+
+/// Convert a C++ core::BitVector to Python BitVector (qcs.common.BitVector).
+pybind11::object bitvector_to_python(const BitVector& bv);
 
 } // namespace core

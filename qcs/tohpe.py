@@ -1,10 +1,84 @@
 # Reference: https://github.com/VivienVandaele/quantum-circuit-optimization/tree/main 
 
 import copy
-
-from .stabilizerTableau import *
-from .common import *
 import itertools
+
+from .common import *
+
+def to_remove_indices(table: list[BitVector]) -> list[int]:
+    seen = {}
+    to_remove = []
+    for i, bv in enumerate(table):
+        vec = tuple(bv.get_integer_vec())
+        first_one = bv.get_first_one()
+        if not bv.get(first_one):
+            to_remove.append(i)
+        elif vec in seen:
+            to_remove.append(seen[vec])
+            to_remove.append(i)
+            del seen[vec]
+        else:
+            seen[vec] = i
+    return to_remove
+
+def to_remove(table: list[BitVector]) -> list[int]:
+    seen = {}
+    to_remove = []
+
+    for i, vec in enumerate(table):
+        vec_int = vec.get_integer_vec()
+        first_one = vec.get_first_one()
+
+        if not vec.get(first_one):
+            to_remove.append(i)
+        elif tuple(vec_int) in seen:
+            to_remove.append(seen[tuple(vec_int)])
+            to_remove.append(i)
+            del seen[tuple(vec_int)]
+        else:
+            seen[tuple(vec_int)] = i
+
+    return to_remove
+
+def proper(table: list[BitVector]) -> list[BitVector]:
+    seen: dict[tuple[bool, ...], int] = {}
+    to_remove: list[int] = []
+    for i, bv in enumerate(table):
+        col: tuple[bool, ...] = tuple(bv.get_boolean_vec())
+        first_one: int = bv.get_first_one()
+        if not bv.get(first_one):
+            to_remove.append(i)
+        elif col in seen:
+            to_remove.append(seen[col])
+            to_remove.append(i)
+            del seen[col]
+        else:
+            seen[col] = i
+    to_remove = sorted(set(to_remove), reverse=True)
+    for i in to_remove:
+        table.pop(i)
+    return table
+
+def kernel(matrix: list[BitVector], augmented_matrix: list[BitVector], pivots: dict[int, int]) -> BitVector | None:
+    for row_idx, row in enumerate(matrix):
+        if row_idx in pivots:
+            continue
+        # Eliminate current row using existing pivots
+        for pivot_row, pivot_col in pivots.items():
+            if row.get(pivot_col):
+                matrix[row_idx].xor(matrix[pivot_row])
+                augmented_matrix[row_idx].xor(augmented_matrix[pivot_row])
+        index = row.get_first_one()
+        if row.get(index):
+            # Eliminate this variable from all pivot rows
+            for pivot_row, _ in pivots.items():
+                if matrix[pivot_row].get(index):
+                    matrix[pivot_row].xor(row)
+                    augmented_matrix[pivot_row].xor(augmented_matrix[row_idx])
+            pivots[row_idx] = index
+        else:
+            return copy.deepcopy(augmented_matrix[row_idx])
+    return None
 
 def fast_todd(table, n_qubits: int) -> list['BitVector']:
     """

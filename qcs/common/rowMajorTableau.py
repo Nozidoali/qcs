@@ -1,177 +1,189 @@
 # simple_tableau.py
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import List, Tuple
+import copy
 
+from .bitVector import BitVector
+from .pauliProduct import PauliProduct
+from .quantumCircuit import QuantumCircuit
 
-# ── 1.  Pauli ↔ bit-vector glue  ────────────────────────────────────────────
-#
-# For a single qubit, map
-#   i → (z=0, x=0)
-#   x → (0,1)   z → (1,0)   y → (1,1)
-# A multi-qubit word is the column-wise concat of those pairs.
-
-_PAULI_TO_BZX = {
-    "i": ("0", "0"),
-    "x": ("0", "1"),
-    "z": ("1", "0"),
-    "y": ("1", "1"),   # Y = i·XZ
-}
-_BZX_TO_PAULI = {v: k for k, v in _PAULI_TO_BZX.items()}
-
-
-def pauli_str_to_bits(p: str) -> Tuple[str, str]:
-    """xyzI → (z_bits, x_bits)  as two equal-length 01 strings."""
-    p = p.lower()
-    z = "".join(_PAULI_TO_BZX[ch][0] for ch in p)
-    x = "".join(_PAULI_TO_BZX[ch][1] for ch in p)
-    return z, x
-
-
-def bits_to_pauli_str(z_bits: str, x_bits: str) -> str:
-    """Inverse of pauli_str_to_bits()."""
-    if len(z_bits) != len(x_bits):
-        raise ValueError("Z/X strings must have same length")
-    return "".join(
-        _BZX_TO_PAULI[(z_bits[i], x_bits[i])] for i in range(len(z_bits))
-    )
-
-
-# ── 2.  Minimal PauliProduct façade  ───────────────────────────────────────
-@dataclass
-class PauliProduct:
-    """Pure-Python shadow of core::PauliProduct."""
-    z: str           # 01 string, length = n_qubits
-    x: str           # 01 string, same length
-    sign: bool = False   # False → +1   True → –1
-
-    # Convenience constructors / converters
-    @classmethod
-    def from_pauli(cls, word: str, sign: bool = False) -> "PauliProduct":
-        z, x = pauli_str_to_bits(word)
-        return cls(z, x, sign)
-
-    def to_pauli(self) -> str:
-        return bits_to_pauli_str(self.z, self.x)
-
-    def __str__(self) -> str:
-        prefix = "-" if self.sign else "+"
-        return f"{prefix}{self.to_pauli()}"
-
-
-# ── 3.  Simple row-major tableau wrapper  ───────────────────────────────────
-@dataclass
 class RowMajorTableau:
-    r"""
+    """
     Row-major stabiliser tableau (Aaronson-Gottesman encoding).
     
     Reference: https://www.scottaaronson.com/papers/chp6.pdf
-
-    This structure represents *any* \(n\)-qubit Clifford unitary or stabiliser
-    state using two \(n \times 2n\) binary matrices **Z** and **X** plus a
-    length-\(2n\) binary sign vector **s**:
-
-    ┌──── column j = 0 … n-1 ───────┬──── column j = n … 2n-1 ──────┐
-    │   D₀ … D_{n-1}  (destabilisers) │   S₀ … S_{n-1} (stabilisers) │
-    └───────────────────────────────┴───────────────────────────────┘
-
-    *   ``z_rows[i][j] == '1'``  ⇔  generator *j* has a **Z** on qubit *i*
-    *   ``x_rows[i][j] == '1'``  ⇔  generator *j* has an **X** on qubit *i*
-    *   ``signs[j]     == '1'``  ⇔  generator *j* carries a global **-1** phase  
-        (needed for Y-type columns and S/H conjugation).
-
-    Properties
-    ----------
-    ``n_qubits``  
-        number of qubits \(n\) (half the column width)
-
-    ``n_rows``  
-        equals ``n_qubits``; one row per physical qubit
-
-    Why 2 n Columns?
-        The \(n\) commuting stabilisers \(S_i\) alone fix the quantum state,
-        but adding the \(n\) complementary *destabilisers* \(D_i\) gives a full
-        symplectic basis of the \(2n\)-dimensional Pauli vector space.  
-        This makes every Clifford gate update a few bit-wise XORs and lets the
-        simulator perform measurements and partial traces in \(O(n^2)\) time.
-
-    Example (ground state |00⟩, n = 2)
-    -----------------------------------
-    >>> tab = RowMajorTableau(
-    ...     z_rows=["0010",  # qubit 0   Z bits
-    ...              "0001"],# qubit 1
-    ...     x_rows=["1000",  # qubit 0   X bits
-    ...              "0100"],
-    ...     signs="0000"
-    ... )
-    >>> print(tab)
-    RowMajorTableau  (n=2)
-        0 | Z 0010 | X 1000
-        1 | Z 0001 | X 0100
-    signs : 0000
-
-    Columns 0-1 are X₀, X₁ (destabilisers); columns 2-3 are Z₀, Z₁
-    (stabilisers).  All generators have positive phase.
-
-    Gate Updates
-    ------------
-    * **H(q)**: swap Z and X bits in column block *q*, toggle sign where both bits were 1.  
-    * **S(q)**: Z_bits ^= X_bits in column block *q*, toggle sign on (X∧Z).  
-    * **CX(c,t)**: X_t ^= X_c, Z_c ^= Z_t, update sign on specific overlap.
-
-    All updates are linear over 𝔽₂, so the tableau stays a compact, fast
-    bit-packed representation throughout Clifford synthesis and simulation.
     """
-    z_rows: List[str]
-    x_rows: List[str]
-    signs: str = ""
+    def __init__(self, n_qubits):
+        self.n_qubits = n_qubits
+        self.z = [self.unit_vector(i, n_qubits << 1) for i in range(n_qubits)]
+        self.x = [self.unit_vector(i + n_qubits, n_qubits << 1) for i in range(n_qubits)]
+        self.signs = BitVector(n_qubits << 1)
 
-    def __post_init__(self):
-        if len(self.z_rows) != len(self.x_rows):
-            raise ValueError("z_rows and x_rows must have the same count")
-        row_len = len(self.z_rows[0])
-        if any(len(r) != row_len for r in self.z_rows + self.x_rows):
-            raise ValueError("All rows must have the same length")
-        if self.signs == "":
-            self.signs = "0" * row_len
-        if len(self.signs) != row_len:
-            raise ValueError("signs length must equal row length")
+    @staticmethod
+    def unit_vector(pos, size):
+        bv = BitVector(size)
+        bv.xor_bit(pos)
+        return bv
 
-    # ── Derived properties ──
-    @property
-    def n_qubits(self) -> int:
-        return len(self.z_rows[0]) // 2
+    def append_x(self, qubit): self.signs.xor(self.z[qubit])
+    def append_z(self, qubit): self.signs.xor(self.x[qubit])
 
-    @property
-    def n_rows(self) -> int:
-        return len(self.z_rows)
+    def append_v(self, qubit):
+        a = copy.deepcopy(self.x[qubit])
+        a.negate()
+        a.and_(self.z[qubit])
+        self.signs.xor(a)
+        self.x[qubit].xor(self.z[qubit])
 
-    # ── Row / column helpers ──
-    def z_row(self, i: int) -> str: return self.z_rows[i]
-    def x_row(self, i: int) -> str: return self.x_rows[i]
-    def sign_bit(self, col: int) -> int: return int(self.signs[col])
+    def append_s(self, qubit):
+        a = copy.deepcopy(self.z[qubit])
+        a.and_(self.x[qubit])
+        self.signs.xor(a)
+        self.z[qubit].xor(self.x[qubit])
 
-    # ── Pauli extraction / insertion ──
-    def extract_pauli_product(self, col: int) -> PauliProduct:
-        z = "".join(r[col] for r in self.z_rows)
-        x = "".join(r[col] for r in self.x_rows)
-        s = bool(int(self.signs[col]))
-        return PauliProduct(z, x, s)
+    def append_h(self, qubit):
+        self.append_s(qubit)
+        self.append_v(qubit)
+        self.append_s(qubit)
 
-    def insert_pauli_product(self, p: PauliProduct, col: int) -> None:
-        if len(p.z) != self.n_rows:
-            raise ValueError("Pauli length mismatch with tableau rows")
-        for i in range(self.n_rows):
-            self.z_rows[i] = self.z_rows[i][:col] + p.z[i] + self.z_rows[i][col + 1 :]
-            self.x_rows[i] = self.x_rows[i][:col] + p.x[i] + self.x_rows[i][col + 1 :]
-        self.signs = self.signs[:col] + ("1" if p.sign else "0") + self.signs[col + 1 :]
+    def append_cx(self, qubits):
+        a = copy.deepcopy(self.z[qubits[0]])
+        a.negate()
+        a.xor(self.x[qubits[1]])
+        a.and_(self.z[qubits[1]])
+        a.and_(self.x[qubits[0]])
+        self.signs.xor(a)
+        self.z[qubits[0]].xor(self.z[qubits[1]])
+        self.x[qubits[1]].xor(self.x[qubits[0]])
 
-    # ── Pretty print ──
+    def append_cz(self, qubits):
+        self.append_s(qubits[0])
+        self.append_s(qubits[1])
+        self.append_cx(qubits)
+        self.append_s(qubits[1])
+        self.append_z(qubits[1])
+        self.append_cx(qubits)
+
+    def extract_pauli_product(self, col):
+        z = BitVector(self.n_qubits)
+        x = BitVector(self.n_qubits)
+        for i in range(self.n_qubits):
+            if self.z[i].get(col): z.xor_bit(i)
+            if self.x[i].get(col): x.xor_bit(i)
+        return PauliProduct(z, x, self.signs.get(col))
+
+    def insert_pauli_product(self, p, col):
+        for i in range(self.n_qubits):
+            if p.z.get(i) != self.z[i].get(col): self.z[i].xor_bit(col)
+            if p.x.get(i) != self.x[i].get(col): self.x[i].xor_bit(col)
+        if p.sign != self.signs.get(col): self.signs.xor_bit(col)
+
+    def prepend_x(self, qubit): self.signs.xor_bit(qubit)
+    def prepend_z(self, qubit): self.signs.xor_bit(qubit + self.n_qubits)
+
+    def prepend_s(self, qubit):
+        stabilizer = self.extract_pauli_product(qubit)
+        destab = self.extract_pauli_product(qubit + self.n_qubits)
+        destab.pauli_product_mult(stabilizer)
+        self.insert_pauli_product(destab, qubit + self.n_qubits)
+
+    def prepend_h(self, qubit):
+        stabilizer = self.extract_pauli_product(qubit)
+        destab = self.extract_pauli_product(qubit + self.n_qubits)
+        self.insert_pauli_product(destab, qubit)
+        self.insert_pauli_product(stabilizer, qubit + self.n_qubits)
+
+    def prepend_cx(self, qubits):
+        stab_ctrl = self.extract_pauli_product(qubits[0])
+        stab_targ = self.extract_pauli_product(qubits[1])
+        destab_ctrl = self.extract_pauli_product(qubits[0] + self.n_qubits)
+        destab_targ = self.extract_pauli_product(qubits[1] + self.n_qubits)
+        stab_targ.pauli_product_mult(stab_ctrl)
+        destab_ctrl.pauli_product_mult(destab_targ)
+        self.insert_pauli_product(stab_targ, qubits[1])
+        self.insert_pauli_product(destab_ctrl, qubits[0] + self.n_qubits)
+
+    def to_circ(self, inverse: bool):
+        tab = copy.deepcopy(self)
+        qc = QuantumCircuit()
+        qc.request_qubits(self.n_qubits)
+        for i in range(self.n_qubits):
+            if any(x.get(i) for x in tab.x):
+                index = next(j for j, x in enumerate(tab.x) if x.get(i))
+                for j in range(i + 1, self.n_qubits):
+                    if tab.x[j].get(i) and j != index:
+                        tab.append_cx([index, j])
+                        qc.add_cnot(ctrl=index, target=j)
+                if tab.z[index].get(i):
+                    tab.append_s(index)
+                    qc.add_gate({"name": "S", "target": index})
+                tab.append_h(index)
+                qc.add_gate({"name": "HAD", "target": index})
+            if not tab.z[i].get(i):
+                index = next(j for j, z in enumerate(tab.z) if z.get(i))
+                tab.append_cx([i, index])
+                qc.add_cnot(i, index)
+            for j in range(self.n_qubits):
+                if tab.z[j].get(i) and j != i:
+                    tab.append_cx([j, i])
+                    qc.add_cnot(j, i)
+            for j in range(self.n_qubits):
+                if tab.x[j].get(i + self.n_qubits) and j != i:
+                    tab.append_cx([i, j])
+                    qc.add_cnot(i, j)
+            for j in range(self.n_qubits):
+                if tab.z[j].get(i + self.n_qubits) and j != i:
+                    tab.append_cx([i, j])
+                    qc.add_cnot(i, j)
+                    tab.append_s(j)
+                    qc.add_gate({"name": "S", "target": j})
+                    tab.append_cx([i, j])
+                    qc.add_cnot(i, j)
+            if tab.z[i].get(i + self.n_qubits):
+                tab.append_s(i)
+                qc.add_gate({"name": "S", "target": i})
+            if tab.signs.get(i):
+                tab.append_x(i)
+                qc.add_gate({"name": "X", "target": i})
+            if tab.signs.get(i + self.n_qubits):
+                tab.append_z(i)
+                qc.add_gate({"name": "Z", "target": i})
+        if not inverse:
+            qc_inv = QuantumCircuit()
+            qc_inv.request_qubits(self.n_qubits)
+            for gate in reversed(qc.gates):
+                qc_inv.add_gate(gate.copy())
+                if gate["name"] == "S":
+                    qc_inv.add_gate({"name": "Z", "target": gate["target"]})
+            return qc_inv
+        return qc
+
     def __str__(self) -> str:
-        head = f"RowMajorTableau  (n={self.n_qubits})"
-        body = "\n".join(
-            f"{i:2d} | Z {self.z_rows[i]} | X {self.x_rows[i]}"
-            for i in range(self.n_rows)
-        )
-        signs = f"signs : {self.signs}"
-        return f"{head}\n{body}\n{signs}"
+        """
+        Pretty-print the stabilizer tableau in row-major form.
+        Uses Aaronson-Gottesman encoding.
+        Displays 2n generators (destabilizers and stabilizers) as Pauli strings.
+        """
+        def pauli_char(z, x):
+            if not z and not x: return 'I'
+            if not z and x:     return 'X'
+            if z and not x:     return 'Z'
+            return 'Y'
+
+        header = f"Row-major stabiliser tableau (Aaronson-Gottesman encoding)\n"
+        header += f"n_qubits = {self.n_qubits}\n"
+        header += "Rows  |  Sign  |  Pauli String\n"
+        header += "------+--------+----------------\n"
+
+        lines = []
+        for row in range(2 * self.n_qubits):
+            if row == self.n_qubits:
+                lines.append("------+--------+----------------")
+            sign = '-' if self.signs.get(row) else '+'
+            paulis = []
+            for col in range(self.n_qubits):
+                z_bit = self.z[col].get(row)
+                x_bit = self.x[col].get(row)
+                paulis.append(pauli_char(z_bit, x_bit))
+            lines.append(f"{row:>4}  |   {sign}    |  " + "".join(paulis))
+
+        return header + "\n".join(lines)

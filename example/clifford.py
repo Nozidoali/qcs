@@ -8,7 +8,7 @@ if __name__ == "__main__":
     circuit.add_cnot(0, 1)  # CNOT from qubit
     
     tableau = qcs.to_tableau(circuit)    
-    print(str(tableau))
+    print(tableau)
     new_circuit = qcs.from_tableau(tableau)
     
     qcs.plot_circuit(circuit, fn="original_circuit.png")
