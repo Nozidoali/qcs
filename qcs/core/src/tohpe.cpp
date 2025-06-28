@@ -170,10 +170,11 @@ void tohpe(const std::vector<BitVector>& original, std::vector<BitVector>& table
 {
     /* Make a writable copy of the incoming table */
     table = original;
+    std::size_t nt = table.size();
 
     /* Working matrices ------------------------------------------------ */
     auto matrix    = extend_boolean_vectors(table, n_qubits);
-    auto augmented = identity_table(table.size());
+    auto augmented = identity_table(nt);
     std::unordered_map<int,int> pivots;
 
     /* ========== main optimisation loop ========== */
@@ -207,20 +208,20 @@ void tohpe(const std::vector<BitVector>& original, std::vector<BitVector>& table
         /* --------  score potential reductions  -------- */
         std::unordered_map<uint64_t,int> score;
         bool parity = (y.popcount() & 1U) != 0U;
-        std::size_t length = table.front().size();  // all rows have same length
+        std::size_t nq = table.front().size();  // all rows have same length
         /**
          * First check unary Z
          */
-        for (std::size_t i = 0; i < table.size(); ++i) {
+        for (std::size_t i = 0; i < nt; ++i) {
             uint64_t key = table[i].to_integer();
             if ((parity && !y.get(i)) || (!parity && y.get(i))) {
                 score[key] = 1;        // ← always write 1, no accumulation
             }
         }
 
-        for (std::size_t i = 0; i < table.size(); ++i) {
+        for (std::size_t i = 0; i < nt; ++i) {
             if (!y.get(i)) continue;
-            for (std::size_t j = 0; j < table.size(); ++j) {
+            for (std::size_t j = 0; j < nt; ++j) {
                 if (y.get(j)) continue;
 
                 BitVector z = table[i];        // XOR pair (i,j)
@@ -244,7 +245,7 @@ void tohpe(const std::vector<BitVector>& original, std::vector<BitVector>& table
         }
             
         if (best_val <= 0) break;
-        BitVector z = BitVector::from_integer(best_key, length);
+        BitVector z = BitVector::from_integer(best_key, nq);
         // std::cout << "z = " << z.to_string() << std::endl;
 
         /* to_update marks rows affected by the kernel vector y */
@@ -252,10 +253,10 @@ void tohpe(const std::vector<BitVector>& original, std::vector<BitVector>& table
 
         /* ---- If y has odd parity, append fresh zero row to all tables -- */
         if (y.popcount() & 1U) {
-            table.emplace_back(table.front().size());
+            table.emplace_back(nq);
             matrix.emplace_back(matrix.front().size());
 
-            BitVector e(table.size()); e.xor_bit(table.size());
+            BitVector e(nt); e.xor_bit(nt - 1);
             augmented.emplace_back(e);
             to_update.push_back(true);                        // mark new row
 
@@ -288,12 +289,12 @@ void tohpe(const std::vector<BitVector>& original, std::vector<BitVector>& table
             swap_remove(augmented,        i);
             swap_remove(to_update,        i);
 
-            std::size_t new_len = table.size();      // length after pop_back
+            nt = table.size();      // length after pop_back
 
             /* Step C -- pivots bookkeeping                                 *
             * If the row that used to be ‘new_len’ carried a pivot,        *
             * relocate that pivot to row i (now holding the swapped row).  */
-            if (auto it = pivots.find(static_cast<int>(new_len)); it != pivots.end())
+            if (auto it = pivots.find(static_cast<int>(nt)); it != pivots.end())
             {
                 int col = it->second;
                 pivots.erase(it);
@@ -305,21 +306,21 @@ void tohpe(const std::vector<BitVector>& original, std::vector<BitVector>& table
             for (std::size_t r = 0; r < augmented.size(); ++r)
             {
                 bool bit_i    = augmented[r].get(i);
-                bool bit_last = augmented[r].get(new_len);
+                bool bit_last = augmented[r].get(nt);
 
                 if (bit_i != bit_last)              // xor_bit(i) if values differ
                     augmented[r].xor_bit(i);
 
                 if (bit_last)                       // xor_bit(new_len) if that bit is 1
-                    augmented[r].xor_bit(new_len);
+                    augmented[r].xor_bit(nt);
             }
 
             /*  Note:  The Rust code leaves column `new_len` in place but zeroed.
                 If you want the physical column removed in C++, you could call a
                 BitVector method such as erase_bit(new_len) right here.              */
-            for (BitVector& bv : table)      bv.erase_bit(new_len);
-            for (BitVector& bv : matrix)     bv.erase_bit(new_len);
-            for (BitVector& bv : augmented)  bv.erase_bit(new_len);
+            for (BitVector& bv : table)      bv.erase_bit(nt);
+            for (BitVector& bv : matrix)     bv.erase_bit(nt);
+            for (BitVector& bv : augmented)  bv.erase_bit(nt);
         }
 
         /* -------- resynchronise matrix / augmented for affected rows ---- */

@@ -9,7 +9,7 @@ circuit = qcs.QuantumCircuit.from_file(qcfile)
 
 py_circuit_opt = qcs.t_count_optimization(circuit, method="TOHPE")
 
-c_circuit_opt = qcs.dummy_optimization(circuit)
+c_circuit_opt = qcs.t_opt(circuit)
 
 # from rich.pretty import pprint
 # pprint(c_circuit_opt.to_json())

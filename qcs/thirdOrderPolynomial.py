@@ -3,7 +3,7 @@
 import copy
 
 from .stabilizerTableau import *
-from .quantumCircuit import *
+from .common import *
 import itertools
 
 def fast_todd(table, n_qubits: int) -> list['BitVector']:

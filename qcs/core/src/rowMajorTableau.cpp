@@ -25,6 +25,65 @@ RowMajorTableau::RowMajorTableau(std::size_t n_qubits)
     }
 }
 
+/* -------------------------------------------------------------------------
+|  Helper to map circuit gates to tableau updates
+|  (assumes QuantumCircuit exposes   const std::vector<Gate>& gates()  and
+|   Gate has  .kind  and  .qubits[] / .ctrl / .targ  accessors).
+|---------------------------------------------------------------------------*/
+RowMajorTableau RowMajorTableau::from_circ(const QuantumCircuit& qc)
+{
+    const std::size_t n = qc.n_qubits;              // whatever accessor you provide
+    RowMajorTableau   tab(n);                       // identity tableau
+
+    for (const Gate& g : qc.gates) {
+
+        /* Reject negative controls / targets up-front: */
+        if (g.neg1() || g.neg2() || g.neg3())
+            throw std::invalid_argument("from_circ: negated controls not supported");
+
+        switch (g.type()) {
+
+        /* ── single-qubit Cliffords ────────────────────────────────────── */
+        case GateType::X:  tab.append_x(g.qubit1()); break;
+        case GateType::Z:  tab.append_z(g.qubit1()); break;
+        case GateType::H:  tab.append_h(g.qubit1()); break;
+
+        case GateType::S:  tab.append_s(g.qubit1()); break;
+
+        /* S† = S³ (tableau update applied three times) */
+        case GateType::Sd:
+            for (int k = 0; k < 3; ++k) tab.append_s(g.qubit1());
+            break;
+
+        /* ── two-qubit Cliffords ───────────────────────────────────────── */
+        case GateType::CNOT: {                 // target = q1, control = q2
+            tab.append_cx(g.qubit2(), g.qubit1());
+            break;
+        }
+
+        case GateType::CZ:                     // symmetric
+            tab.append_cz(g.qubit1(), g.qubit2());
+            break;
+
+        case GateType::Swap: {                 // SWAP = CX ct · CX tc · CX ct
+            const auto q1 = g.qubit1();
+            const auto q2 = g.qubit2();
+            tab.append_cx(q2, q1);
+            tab.append_cx(q1, q2);
+            tab.append_cx(q2, q1);
+            break;
+        }
+
+        /* ── unsupported (non-Clifford) gates ─────────────────────────── */
+        default:
+            throw std::invalid_argument(
+                "from_circ: non-Clifford gate encountered (" +
+                gate_type_to_string(g.type()) + ')');
+        }
+    }
+    return tab;
+}
+
 /* ------------------------------------------------------------------ *
  *  Append (gate acts on RHS)                                         *
  * ------------------------------------------------------------------ */
@@ -61,6 +120,7 @@ void RowMajorTableau::append_cx(std::size_t ctrl, std::size_t targ) {
 }
 
 void RowMajorTableau::append_cz(std::size_t q1, std::size_t q2) {
+    // this could be done easier
     append_s(q1);
     append_s(q2);
     append_cx(q1, q2);
@@ -181,7 +241,7 @@ QuantumCircuit RowMajorTableau::to_circ(bool inverse) const
             if (tab.x_row(index).get(i)) { any_x = true; break; }
 
         if (any_x) {
-            /* Clear other Xs with CX fan-out */
+            /* Clear other Xs with CX fan-out (control = index, target = j) */
             for (std::size_t j = i + 1; j < n; ++j)
                 if (tab.x_row(j).get(i) && j != index) {
                     tab.append_cx(index, j);
@@ -195,23 +255,23 @@ QuantumCircuit RowMajorTableau::to_circ(bool inverse) const
                 qc.add_s(static_cast<std::uint16_t>(index));
             }
 
-            /* Finally Hadamard */
+            /* Finally Hadamard on pivot qubit */
             tab.append_h(index);
             qc.add_h(static_cast<std::uint16_t>(index));
         }
 
-        /* ----- Ensure Z on diagonal i,i via CX swaps ----- */
+        /* ----- Ensure Z on diagonal (i,i) via CX swap ----- */
         if (!tab.z_row(i).get(i)) {
             std::size_t index2 = i + 1;
             while (index2 < n && !tab.z_row(index2).get(i)) ++index2;
             if (index2 < n) {
-                tab.append_cx(i, index2);
+                tab.append_cx(i, index2);   // control = i, target = index2
                 qc.add_cnot(static_cast<std::uint16_t>(i),
                             static_cast<std::uint16_t>(index2));
             }
         }
 
-        /* Clear off-diagonal Zs in stabilisers */
+        /* Clear off-diagonal Zs in stabilisers (control = j, target = i) */
         for (std::size_t j = 0; j < n; ++j)
             if (tab.z_row(j).get(i) && j != i) {
                 tab.append_cx(j, i);
@@ -222,7 +282,7 @@ QuantumCircuit RowMajorTableau::to_circ(bool inverse) const
         /* Clear Xs in destabilisers (column i+n) */
         for (std::size_t j = 0; j < n; ++j)
             if (tab.x_row(j).get(i + n) && j != i) {
-                tab.append_cx(i, j);
+                tab.append_cx(i, j);        // control = i, target = j
                 qc.add_cnot(static_cast<std::uint16_t>(i),
                             static_cast<std::uint16_t>(j));
             }
@@ -230,14 +290,14 @@ QuantumCircuit RowMajorTableau::to_circ(bool inverse) const
         /* Handle Zs in destabilisers (column i+n) */
         for (std::size_t j = 0; j < n; ++j)
             if (tab.z_row(j).get(i + n) && j != i) {
-                tab.append_cx(i, j);
+                tab.append_cx(i, j);        // control = i, target = j
                 qc.add_cnot(static_cast<std::uint16_t>(i),
                             static_cast<std::uint16_t>(j));
 
                 tab.append_s(j);
                 qc.add_s(static_cast<std::uint16_t>(j));
 
-                tab.append_cx(i, j);
+                tab.append_cx(i, j);        // same direction again
                 qc.add_cnot(static_cast<std::uint16_t>(i),
                             static_cast<std::uint16_t>(j));
             }
@@ -259,18 +319,20 @@ QuantumCircuit RowMajorTableau::to_circ(bool inverse) const
         }
     }
 
-    /* If caller wants the inverse */
+    /* If caller wants the inverse circuit instead */
     if (!inverse) {
         QuantumCircuit qc_inv;  qc_inv.request_qubits(n);
         for (auto it = qc.gates.rbegin(); it != qc.gates.rend(); ++it) {
             qc_inv.gates.push_back(*it);
-            if (it->type() == GateType::S)               // append Z after S in inverse
+            if (it->type() == GateType::S)          // (S)† = Z · S
                 qc_inv.add_z(it->qubit1());
         }
         return qc_inv;
     }
     return qc;
 }
+
+
 
 
 } // namespace core

@@ -1,5 +1,5 @@
 import copy
-from .quantumCircuit import QuantumCircuit
+from .common import QuantumCircuit
 from dataclasses import dataclass
 
 class BitVector:

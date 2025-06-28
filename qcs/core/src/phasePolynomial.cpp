@@ -1,5 +1,6 @@
 #include "phasePolynomial.hpp"
 #include <cassert>
+#include <iostream>
 
 namespace core {
 
@@ -53,12 +54,23 @@ static std::size_t count_single(const std::vector<BitVector>& tbl,
 /* ------------------------------------------------------------------ *
  *  RowMajorTableau correction                                                *
  * ------------------------------------------------------------------ */
-RowMajorTableau PhasePolynomial::clifford_correction(const std::vector<BitVector>& ref,
-                                             std::size_t nq) const
+RowMajorTableau
+PhasePolynomial::clifford_correction(
+    const std::vector<BitVector>& ref,
+    std::size_t nq) const
 {
     assert(nq == n_ && "qubit mismatch");
 
     RowMajorTableau tab(nq);
+
+    // print table_ and ref for debugging
+    for (const auto& row : table_) {
+        std::cout << "Phase Polynomial Row: " << row.to_string() << std::endl;
+    }
+
+    for (const auto& row : ref) {
+        std::cout << "Reference Row: " << row.to_string() << std::endl;
+    }
 
     /* pair-wise CZ phase fix */
     for (std::size_t i = 0; i < nq; ++i) {
@@ -67,8 +79,10 @@ RowMajorTableau PhasePolynomial::clifford_correction(const std::vector<BitVector
             std::size_t z2 = count_pair(table_,     i, j);
 
             std::size_t diff = ((z1 + 8) - z2) & 7U;   // (z1 - z2) mod 8
-            for (std::size_t k = 0; k < diff / 2; ++k)
+            for (std::size_t k = 0; k < diff / 2; ++k) {
+                std::cout << "Appending CZ for qubits " << i << " and " << j << std::endl;
                 tab.append_cz(i, j);
+            }
         }
 
         /* single-qubit S-phase fix */
@@ -76,8 +90,10 @@ RowMajorTableau PhasePolynomial::clifford_correction(const std::vector<BitVector
         std::size_t z2s = count_single(table_, i);
         std::size_t diff = ((z1s + 8) - z2s) & 7U;
 
-        for (std::size_t k = 0; k < diff / 2; ++k)
+        for (std::size_t k = 0; k < diff / 2; ++k) {
+            std::cout << "Appending S for qubit " << i << std::endl;
             tab.append_s(i);
+        }
     }
     return tab;
 }
@@ -98,14 +114,16 @@ QuantumCircuit PhasePolynomial::to_circ() const {
         ones.erase(std::remove(ones.begin(), ones.end(), pivot), ones.end());
 
         /* forward CX fan-in */
-        for (std::size_t c : ones)
-            qc.add_cnot(c, pivot);
+        for (std::size_t c : ones) {
+            qc.add_cnot(pivot, c);
+        }
 
         qc.add_t(pivot);                               // T gate
 
         /* uncompute CX fan-in (reverse order) */
-        for (auto it = ones.rbegin(); it != ones.rend(); ++it)
-            qc.add_cnot(*it, pivot);
+        for (auto it = ones.rbegin(); it != ones.rend(); ++it) {
+            qc.add_cnot(pivot, *it);
+        }
     }
     return qc;
 }

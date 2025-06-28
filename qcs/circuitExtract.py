@@ -22,8 +22,7 @@ Approximate logic synthesis
 
 from rich.pretty import pprint
 
-from .logicNetwork import LogicNetwork, LogicGate
-from .quantumCircuit import QuantumCircuit
+from .common import LogicNetwork, LogicGate, QuantumCircuit
 from .visualization import plot_circuit, plot_network
 
 def post_process(circuit: QuantumCircuit, **kwargs) -> QuantumCircuit:

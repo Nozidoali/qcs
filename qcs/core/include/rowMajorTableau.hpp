@@ -9,7 +9,8 @@ namespace core {
 class RowMajorTableau {
 public:
     explicit RowMajorTableau(std::size_t n_qubits);
-
+    static RowMajorTableau from_circ(const QuantumCircuit& qc);
+    
     /* -------- Clifford append (right-multiply) -------- */
     void append_x (std::size_t q);
     void append_z (std::size_t q);

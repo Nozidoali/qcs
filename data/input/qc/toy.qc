@@ -10,5 +10,6 @@ tof  q1 q0
 tof  q0 q1
 
 T    q0
+T    q1
 
 END

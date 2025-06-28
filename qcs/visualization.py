@@ -2,8 +2,7 @@ import matplotlib.pyplot as plt
 import matplotlib.transforms as mtrans
 import pygraphviz as pgv
 
-from .quantumCircuit import QuantumCircuit
-from .logicNetwork import LogicNetwork
+from .common import QuantumCircuit, LogicNetwork
 
 def plot_network(network: LogicNetwork, **kwargs) -> None:
     show_name: bool = kwargs.get("show_name", True)
@@ -44,7 +43,7 @@ def plot_circuit(circ, fn=None):
     colors = {"CNOT":"b","Tof":"g","T":"r","Tdg":"r","X":"b","S":"m","HAD":"g"}
     
     gloc = schedule_gates(circ)
-    cols = max(gloc.values()) + 1
+    cols = max(gloc.values()) + 1 if gloc else 1
     x = {i: c * xc for i, c in gloc.items()}
     y = {q: (circ.n_qubits - 1 - q) * yc for q in range(circ.n_qubits)}
     
