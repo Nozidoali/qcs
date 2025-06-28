@@ -8,7 +8,6 @@
 
 namespace core {
 
-    
 /**
  * Build a RowMajorTableau representation of any Clifford+T circuit.
  * Non-Clifford gates (T/Td, Toffoli, CCZ) are handled via

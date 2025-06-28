@@ -15,17 +15,22 @@ TOptimizer::TOptimizer(std::size_t n_qubits)
 void TOptimizer::flush_poly(QuantumCircuit& out) {
     if (poly_.rows().empty()) return;
 
-    const std::vector<BitVector>& old_tableau = poly_.rows();                         // snapshot
-    /* run chosen optimiser */
-    //  -- plug in whichever one you need later in optimise()
-    // placeholder, optimiser will be applied in optimise()
+    std::vector<BitVector> old_tableau = poly_.rows();
 
     // print the phase polynomial for debugging
     for (const auto& row : old_tableau) {
-        std::cout << "Phase Polynomial Row: " << row.to_string() << std::endl;
+        std::cout << row.to_string() << std::endl;
     }
 
-    out += poly_.clifford_correction(old_tableau, n_).to_circ(false);
+    // use tohpe to optimise the phase polynomial
+    tohpe(old_tableau, poly_.get_rows(), n_); 
+
+    std::cout << "Optimised Phase Polynomial:" << std::endl;
+    for (const auto& row : poly_.rows()) {
+        std::cout << row.to_string() << std::endl;
+    }
+
+    out += poly_.clifford_correction(old_tableau, n_).to_circ();
     out += poly_.to_circ();
 
     // reset the phase polynomial
@@ -47,10 +52,7 @@ QuantumCircuit TOptimizer::optimize(const QuantumCircuit& circ,
                                     const std::string& optimiser)
 {
     QuantumCircuit out; out.request_qubits(n_);
-
     bool first_t_seen = false;
-
-
     for (std::size_t idx = 0; idx < circ.gates.size(); ++idx) {
 
         const Gate& g = circ.gates[idx];
@@ -90,8 +92,6 @@ QuantumCircuit TOptimizer::optimize(const QuantumCircuit& circ,
             if (poly_.rows().empty() && emitted_poly_sections_)
                 flush_tableau(out);
 
-            std::cout << "row" << tab_.stabilizer(q).to_string() << std::endl;
-
             poly_.add_row(tab_.stabilizer(q).z);      // record Z mask
             if (tab_.stabilizer(q).sign) {            // fold sign
                 tab_.prepend_s(q);
@@ -104,21 +104,14 @@ QuantumCircuit TOptimizer::optimize(const QuantumCircuit& circ,
         }
 
         // print the table for debugging
-        std::cout << "Gate: " << g.to_string() << std::endl;
-        std::cout << tab_.to_row_major().to_string() << std::endl;
+        // std::cout << "Gate: " << g.to_string() << std::endl;
+        // std::cout << tab_.to_row_major().to_string() << std::endl;
     }
 
     /* flush tail */
-    flush_poly(out);
+    if (!poly_.empty()) flush_poly(out);
     flush_tableau(out);
     return out;
 }
-
-/* ---------- stubs for external back-ends (replace by real impl) ---------- */
-std::vector<BitVector> TOptimizer::fast_todd(std::vector<BitVector> v,
-                                             std::size_t){ return v; }
-
-std::vector<BitVector> TOptimizer::tohpe(std::vector<BitVector> v,
-                                         std::size_t){ return v; }
 
 } // namespace core

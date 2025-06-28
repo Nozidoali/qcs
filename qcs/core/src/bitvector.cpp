@@ -26,6 +26,22 @@ BitVector BitVector::from_integer_vec(const std::vector<int>& vec) {
     return bv;
 }
 
+BitVector BitVector::from_integer(uint64_t v, std::size_t bit_len) {
+    BitVector bv(bit_len);  // 64 bits
+    for (std::size_t i = 0; i < bit_len; ++i)
+        if ((v >> i) & 1ULL) bv.xor_bit(i);
+    return bv;
+}
+
+// TODO: change this to a hash function
+uint64_t BitVector::to_integer() const {
+    uint64_t res = 0;
+    for (std::size_t i = 0; i < bit_len_; ++i) {
+        if (get(i)) res |= (1ULL << i);
+    }
+    return res;
+}
+
 /* ---------- single-bit access ---------- */
 bool BitVector::get(std::size_t idx) const {
     if (idx >= bit_len_) return false;
@@ -77,6 +93,42 @@ std::string BitVector::to_string() const {
 }
 
 /* ---------- extras ---------- */
+
+
+void BitVector::erase_bit(std::size_t idx)
+{
+    if (idx >= bit_len_)        // out-of-range → no-op
+        return;
+
+    const std::size_t old_words = word_count();     // before shrinking
+    const std::size_t w_idx     = idx >> 6;         // word that holds the bit
+    const std::size_t b_idx     = idx & 63;         // bit offset inside that word
+
+    /* 1.  Remove the bit inside its own word.  */
+    std::uint64_t low_mask  = (b_idx == 0) ? 0ULL : ((1ULL << b_idx) - 1ULL);
+    std::uint64_t word      = words_[w_idx];
+    std::uint64_t upper     = (b_idx == 63) ? 0ULL : (word >> (b_idx + 1));
+
+    words_[w_idx] = (word & low_mask) | (upper << b_idx);
+
+    /* 2.  Propagate the one-bit left shift across following words.  */
+    for (std::size_t w = w_idx + 1; w < old_words; ++w) {
+        std::uint64_t cur   = words_[w];
+        std::uint64_t carry = cur & 1ULL;            // LSB that wraps
+        words_[w - 1] |= carry << 63;               // move it to MSB of prev word
+        words_[w]      = cur >> 1;                  // shift current word right by 1
+    }
+
+    /* 3.  Update length and storage.  */
+    --bit_len_;
+
+    // If the last 64-bit word is now completely out of range, drop it.
+    if (bit_len_ % WORD_BITS == 0 && !words_.empty())
+        words_.pop_back();
+
+    trim_last_word();   // clear padding bits in the new last word
+}
+
 void BitVector::extend_vec(const std::vector<bool>& vec) {
     for (bool b : vec) {
         if ((bit_len_ & 63U) == 0) words_.push_back(0ULL);

@@ -32,8 +32,8 @@ void ColumnMajorTableau::prepend_s(std::size_t q) {
     for (auto& s : stabs_) {
         bool zq = s.z.get(q);
         bool xq = s.x.get(q);
-        if (zq && xq) s.sign ^= true;           // phase -i
-        if (xq)        s.z.xor_bit(q);          // Z ⊕= X
+        if (zq && xq)  s.sign ^= true;          // phase -i
+        if (xq)        s.z.xor_bit(q);          // Z ^= X
     }
 }
 
@@ -66,11 +66,11 @@ RowMajorTableau ColumnMajorTableau::to_row_major() const {
     RowMajorTableau tab(n_);
     for (std::size_t i = 0; i < n_; ++i) {
         PauliProduct p(
-            stabs_[i].z,               // already length n_
+            stabs_[i].z,                            // already length n_
             stabs_[i].x,
             stabs_[i].sign
         );
-        tab.insert_pauli_product(p, i);           // stabilizer
+        tab.insert_pauli_product(p, i);             // stabilizer
     }
     return tab;
 }

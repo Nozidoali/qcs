@@ -32,9 +32,8 @@ private:
     PhasePolynomial      poly_;
     bool                 emitted_poly_sections_{false};
 
-    /* external optimiser hooks (must be provided elsewhere) */
-    std::vector<BitVector> fast_todd(std::vector<BitVector>, std::size_t);
-    std::vector<BitVector> tohpe     (std::vector<BitVector>, std::size_t);
 };
+
+void tohpe(const std::vector<BitVector>& table, std::vector<BitVector>& out_table, std::size_t n_qubits);
 
 } // namespace core

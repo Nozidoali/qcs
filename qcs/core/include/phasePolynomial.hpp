@@ -16,7 +16,7 @@ public:
     explicit PhasePolynomial(std::size_t n_qubits);
 
     /* add a row (length ≥ n_qubits) */
-    void        add_row(const BitVector& row) { table_.push_back(row); }
+    void        add_row(const BitVector& row);
 
     /* build RowMajorTableau that fixes Clifford phase vs. reference table */
     RowMajorTableau     clifford_correction(const std::vector<BitVector>& ref,
@@ -26,7 +26,12 @@ public:
     QuantumCircuit to_circ() const;
 
     std::size_t n_qubits() const { return n_; }
-    const std::vector<BitVector>& rows() const { return table_; }
+    const std::vector<BitVector>& rows() const;
+    std::vector<BitVector>& get_rows();
+
+    std::string to_string() const;
+
+    bool empty() const;
 
 private:
     std::size_t             n_;

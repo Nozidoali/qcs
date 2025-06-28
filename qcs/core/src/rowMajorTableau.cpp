@@ -169,20 +169,20 @@ QuantumCircuit RowMajorTableau::to_circ(bool inverse) const
 {
     /* Work on a mutable copy */
     RowMajorTableau tab(*this);
-    std::size_t nq = n_;
+    std::size_t n = n_;
 
-    QuantumCircuit qc;  qc.request_qubits(nq);
+    QuantumCircuit qc;  qc.request_qubits(n);
 
-    for (std::size_t i = 0; i < nq; ++i) {
+    for (std::size_t i = 0; i < n; ++i) {
         /* ----- Handle Xs in stabiliser rows ----- */
         bool any_x = false;
         std::size_t index = 0;
-        for (; index < nq; ++index)
+        for (; index < n; ++index)
             if (tab.x_row(index).get(i)) { any_x = true; break; }
 
         if (any_x) {
             /* Clear other Xs with CX fan-out */
-            for (std::size_t j = i + 1; j < nq; ++j)
+            for (std::size_t j = i + 1; j < n; ++j)
                 if (tab.x_row(j).get(i) && j != index) {
                     tab.append_cx(index, j);
                     qc.add_cnot(static_cast<std::uint16_t>(index),
@@ -203,8 +203,8 @@ QuantumCircuit RowMajorTableau::to_circ(bool inverse) const
         /* ----- Ensure Z on diagonal i,i via CX swaps ----- */
         if (!tab.z_row(i).get(i)) {
             std::size_t index2 = i + 1;
-            while (index2 < nq && !tab.z_row(index2).get(i)) ++index2;
-            if (index2 < nq) {
+            while (index2 < n && !tab.z_row(index2).get(i)) ++index2;
+            if (index2 < n) {
                 tab.append_cx(i, index2);
                 qc.add_cnot(static_cast<std::uint16_t>(i),
                             static_cast<std::uint16_t>(index2));
@@ -212,7 +212,7 @@ QuantumCircuit RowMajorTableau::to_circ(bool inverse) const
         }
 
         /* Clear off-diagonal Zs in stabilisers */
-        for (std::size_t j = 0; j < nq; ++j)
+        for (std::size_t j = 0; j < n; ++j)
             if (tab.z_row(j).get(i) && j != i) {
                 tab.append_cx(j, i);
                 qc.add_cnot(static_cast<std::uint16_t>(j),
@@ -220,16 +220,16 @@ QuantumCircuit RowMajorTableau::to_circ(bool inverse) const
             }
 
         /* Clear Xs in destabilisers (column i+n) */
-        for (std::size_t j = 0; j < nq; ++j)
-            if (tab.x_row(j).get(i + nq) && j != i) {
+        for (std::size_t j = 0; j < n; ++j)
+            if (tab.x_row(j).get(i + n) && j != i) {
                 tab.append_cx(i, j);
                 qc.add_cnot(static_cast<std::uint16_t>(i),
                             static_cast<std::uint16_t>(j));
             }
 
         /* Handle Zs in destabilisers (column i+n) */
-        for (std::size_t j = 0; j < nq; ++j)
-            if (tab.z_row(j).get(i + nq) && j != i) {
+        for (std::size_t j = 0; j < n; ++j)
+            if (tab.z_row(j).get(i + n) && j != i) {
                 tab.append_cx(i, j);
                 qc.add_cnot(static_cast<std::uint16_t>(i),
                             static_cast<std::uint16_t>(j));
@@ -243,7 +243,7 @@ QuantumCircuit RowMajorTableau::to_circ(bool inverse) const
             }
 
         /* Diagonal S for destabiliser if needed */
-        if (tab.z_row(i).get(i + nq)) {
+        if (tab.z_row(i).get(i + n)) {
             tab.append_s(i);
             qc.add_s(static_cast<std::uint16_t>(i));
         }
@@ -253,15 +253,15 @@ QuantumCircuit RowMajorTableau::to_circ(bool inverse) const
             tab.append_x(i);
             qc.add_x(static_cast<std::uint16_t>(i));
         }
-        if (tab.sign_bit(i + nq)) {
+        if (tab.sign_bit(i + n)) {
             tab.append_z(i);
             qc.add_z(static_cast<std::uint16_t>(i));
         }
     }
 
-    /* If caller wants the inverse, build qc_inv = qc† */
+    /* If caller wants the inverse */
     if (!inverse) {
-        QuantumCircuit qc_inv;  qc_inv.request_qubits(nq);
+        QuantumCircuit qc_inv;  qc_inv.request_qubits(n);
         for (auto it = qc.gates.rbegin(); it != qc.gates.rend(); ++it) {
             qc_inv.gates.push_back(*it);
             if (it->type() == GateType::S)               // append Z after S in inverse

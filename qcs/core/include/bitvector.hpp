@@ -10,6 +10,7 @@ class BitVector {
 public:
     explicit BitVector(std::size_t size = 0);                 // all-zero
     static BitVector from_integer_vec(const std::vector<int>& vec);
+    static BitVector from_integer(uint64_t v, std::size_t bit_len);
 
     /* ---- size / access ---- */
     std::size_t size() const { return bit_len_; }
@@ -27,8 +28,10 @@ public:
     std::vector<bool> get_boolean_vec()  const;
     std::vector<int>  get_integer_vec()  const;
     std::string       to_string()        const;
-
+    uint64_t          to_integer()       const;
+    
     /* ---- extras ---- */
+    void              erase_bit(std::size_t idx);
     void              extend_vec(const std::vector<bool>& vec);   // append bits
     std::size_t       popcount()          const;                  // # of 1s
     std::size_t       get_first_one()     const;                  // 1st set bit or 0 if none

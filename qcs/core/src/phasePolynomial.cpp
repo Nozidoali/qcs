@@ -8,6 +8,26 @@ PhasePolynomial::PhasePolynomial(std::size_t n_qubits)
     : n_(n_qubits)
 {}
 
+void PhasePolynomial::add_row(const BitVector& row) { 
+    table_.push_back(row); 
+}
+
+const std::vector<BitVector>& PhasePolynomial::rows() const {
+    return table_; 
+}
+
+std::vector<BitVector>& PhasePolynomial::get_rows() {
+    return table_; 
+}
+
+std::string PhasePolynomial::to_string() const {
+    std::string result;
+    for (const auto& row : table_) {
+        result += row.to_string() + "\n";
+    }
+    return result;
+}
+
 /* ------------------------------------------------------------------ *
  *  Helper: count rows where bits i & j are both 1                     *
  * ------------------------------------------------------------------ */
@@ -88,6 +108,10 @@ QuantumCircuit PhasePolynomial::to_circ() const {
             qc.add_cnot(*it, pivot);
     }
     return qc;
+}
+
+bool PhasePolynomial::empty() const {
+    return table_.empty();
 }
 
 } // namespace core
