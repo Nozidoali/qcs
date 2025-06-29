@@ -33,6 +33,8 @@ public:
 
     bool empty() const;
 
+    std::size_t size() const { return table_.size(); }
+
 private:
     std::size_t             n_;
     std::vector<BitVector>  table_;

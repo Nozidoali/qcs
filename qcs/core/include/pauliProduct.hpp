@@ -15,6 +15,7 @@ public:
     BitVector x;   ///< X mask
     bool      sign = false;
 
+    PauliProduct() = default;  // all-zero, no sign
     PauliProduct(BitVector zz, BitVector xx, bool sg = false)
         : z(std::move(zz)), x(std::move(xx)), sign(sg) {}
 

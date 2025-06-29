@@ -6,16 +6,6 @@
 
 namespace core {
 
-struct TableauStabilizer {
-    BitVector z;   ///< Z mask  (length = n_qubits)
-    BitVector x;   ///< X mask  (length = n_qubits)
-    bool      sign = false;
-
-    std::string to_string() const {
-        return "Z: " + z.to_string() + ", X: " + x.to_string() + ", sign: " + (sign ? "1" : "0");
-    }
-};
-
 class ColumnMajorTableau {
 public:
     explicit ColumnMajorTableau(std::size_t n_qubits);
@@ -29,14 +19,17 @@ public:
 
     /* Conversion helper */
     RowMajorTableau to_row_major() const;
+    QuantumCircuit  to_circ(bool inverse) const;
 
     /* Accessors */
-    std::size_t n_qubits() const { return n_; }
-    const TableauStabilizer& stabilizer(std::size_t q) const { return stabs_[q]; }
+    std::size_t         n_qubits() const { return n_; }
+    const PauliProduct& stabilizer(std::size_t q) const { return stabs_[q]; }
+    const PauliProduct& destabilizer(std::size_t q) const { return destabs_[q]; }
 
 private:
     std::size_t                     n_;
-    std::vector<TableauStabilizer>  stabs_;   // length n_
+    std::vector<PauliProduct>       stabs_;   // length n_
+    std::vector<PauliProduct>       destabs_; // length 2n_
 };
 
 } // namespace core

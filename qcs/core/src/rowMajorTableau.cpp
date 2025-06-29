@@ -3,6 +3,7 @@
 #include <sstream>
 #include <iostream>
 #include <string>
+#include <optional>
 
 namespace core {
 
@@ -240,142 +241,111 @@ std::string RowMajorTableau::to_string() const
  * =========================================================== */
 QuantumCircuit RowMajorTableau::to_circ(bool inverse) const
 {
-    /* Work on a mutable copy */
     RowMajorTableau tab(*this);
-    std::size_t n = n_;
+    std::size_t n = tab.n_qubits();
 
-    QuantumCircuit qc;  qc.request_qubits(n);
-
-    std::cout << tab.to_string() << std::endl;
+    QuantumCircuit qc;
+    qc.request_qubits(n);
 
     for (std::size_t i = 0; i < n; ++i) {
-        /* ----- Handle Xs in stabiliser rows ----- */
-        bool any_x = false;
-        std::size_t index = 0;
-        for (; index < n; ++index)
-            if (tab.x_row(index).get(i)) { any_x = true; break; }
+        // Step 1: Find pivot in stabilizer X matrix
+        std::optional<std::size_t> index_opt;
+        for (std::size_t j = 0; j < n; ++j) {
+            if (tab.x_row(j).get(i)) {
+                index_opt = j;
+                break;
+            }
+        }
 
-        if (any_x) {
-            /* Clear other Xs with CX fan-out (control = index, target = j) */
-            for (std::size_t j = i + 1; j < n; ++j)
+        if (index_opt.has_value()) {
+            std::size_t index = index_opt.value();
+
+            // Step 2: Clear other Xs in stabilizers
+            for (std::size_t j = i + 1; j < n; ++j) {
                 if (tab.x_row(j).get(i) && j != index) {
-
-                    std::cout << "Clearing X in stabiliser row " << j
-                              << " with control " << index << std::endl;
-
                     tab.append_cx(index, j);
-                    qc.add_cnot(static_cast<std::uint16_t>(index),
-                                static_cast<std::uint16_t>(j));
+                    qc.add_cnot(index, j);
                 }
+            }
 
-            /* Add S if pivot also has Z */
+            // Step 3: If pivot also has Z, apply S
             if (tab.z_row(index).get(i)) {
-
-                std::cout << "Adding S for stabiliser row " << index
-                          << " with pivot " << i << std::endl;
-
                 tab.append_s(index);
-                qc.add_s(static_cast<std::uint16_t>(index));
+                qc.add_s(index);
             }
 
-            /* Finally Hadamard on pivot qubit */
-            std::cout << "Adding H for stabiliser row " << index
-                      << " with pivot " << i << std::endl;
-
+            // Step 4: Apply H
             tab.append_h(index);
-            qc.add_h(static_cast<std::uint16_t>(index));
+            qc.add_h(index);
         }
 
-        /* ----- Ensure Z on diagonal (i,i) via CX swap ----- */
+        // Step 5: Ensure Z on (i, i)
         if (!tab.z_row(i).get(i)) {
-            std::size_t index2 = i + 1;
-            while (index2 < n && !tab.z_row(index2).get(i)) ++index2;
-            if (index2 < n) {
-                std::cout << "Clearing Z in stabiliser row " << index2
-                          << " with control " << i << " by adding CX" 
-                          << std::endl;
-
-                tab.append_cx(i, index2);   // control = i, target = index2
-                qc.add_cnot(static_cast<std::uint16_t>(i),
-                            static_cast<std::uint16_t>(index2));
+            std::size_t z_pivot = i + 1;
+            while (z_pivot < n && !tab.z_row(z_pivot).get(i)) ++z_pivot;
+            if (z_pivot < n) {
+                tab.append_cx(i, z_pivot);
+                qc.add_cnot(i, z_pivot);
             }
         }
 
-        /* Clear off-diagonal Zs in stabilisers (control = j, target = i) */
-        for (std::size_t j = 0; j < n; ++j)
+        // Step 6: Clear off-diagonal Zs in stabilizers
+        for (std::size_t j = 0; j < n; ++j) {
             if (tab.z_row(j).get(i) && j != i) {
-
-                std::cout << "Clearing Z in stabiliser row " << j
-                          << " with control " << i << " by adding CX"
-                          << std::endl;
-
                 tab.append_cx(j, i);
-                qc.add_cnot(static_cast<std::uint16_t>(j),
-                            static_cast<std::uint16_t>(i));
+                qc.add_cnot(j, i);
             }
+        }
 
-        /* Clear Xs in destabilisers (column i+n) */
-        for (std::size_t j = 0; j < n; ++j)
+        // Step 7: Clear off-diagonal Xs in destabilisers (column i+n)
+        for (std::size_t j = 0; j < n; ++j) {
             if (tab.x_row(j).get(i + n) && j != i) {
-
-                std::cout << "Clearing X in destabiliser row " << j
-                          << " with control " << i << std::endl;
-
-                tab.append_cx(i, j);        // control = i, target = j
-                qc.add_cnot(static_cast<std::uint16_t>(i),
-                            static_cast<std::uint16_t>(j));
+                tab.append_cx(i, j);
+                qc.add_cnot(i, j);
             }
+        }
 
-        /* Handle Zs in destabilisers (column i+n) */
-        for (std::size_t j = 0; j < n; ++j)
+        // Step 8: Clear off-diagonal Zs in destabilisers (column i+n)
+        for (std::size_t j = 0; j < n; ++j) {
             if (tab.z_row(j).get(i + n) && j != i) {
-
-                std::cout << "Clearing Z in destabiliser row " << j
-                          << " with control " << i << std::endl;
-
-                tab.append_cx(i, j);        // control = i, target = j
-                qc.add_cnot(static_cast<std::uint16_t>(i),
-                            static_cast<std::uint16_t>(j));
-
+                tab.append_cx(i, j);
+                qc.add_cnot(i, j);
                 tab.append_s(j);
-                qc.add_s(static_cast<std::uint16_t>(j));
-
-                tab.append_cx(i, j);        // same direction again
-                qc.add_cnot(static_cast<std::uint16_t>(i),
-                            static_cast<std::uint16_t>(j));
+                qc.add_s(j);
+                tab.append_cx(i, j);
+                qc.add_cnot(i, j);
             }
+        }
 
-        /* Diagonal S for destabiliser if needed */
+        // Step 9: Apply diagonal S if needed in destabiliser
         if (tab.z_row(i).get(i + n)) {
             tab.append_s(i);
-            qc.add_s(static_cast<std::uint16_t>(i));
+            qc.add_s(i);
         }
 
-        /* Global sign corrections */
+        // Step 10: Sign corrections
         if (tab.sign_bit(i)) {
             tab.append_x(i);
-            qc.add_x(static_cast<std::uint16_t>(i));
+            qc.add_x(i);
         }
         if (tab.sign_bit(i + n)) {
             tab.append_z(i);
-            qc.add_z(static_cast<std::uint16_t>(i));
+            qc.add_z(i);
         }
     }
 
-    /* If caller wants the inverse circuit instead */
+    // Step 11: Reverse + add Z if !inverse
     if (!inverse) {
-        QuantumCircuit qc_inv;  qc_inv.request_qubits(n);
+        QuantumCircuit out; out.request_qubits(n);
         for (auto it = qc.gates.rbegin(); it != qc.gates.rend(); ++it) {
-            qc_inv.gates.push_back(*it);
-            if (it->type() == GateType::S)          // (S)† = Z · S
-                qc_inv.add_z(it->qubit1());
+            out.gates.push_back(*it);
+            if (it->type() == GateType::S)
+                out.add_z(it->qubit1());
         }
-        return qc_inv;
+        return out;
     }
+
     return qc;
 }
-
-
-
 
 } // namespace core
