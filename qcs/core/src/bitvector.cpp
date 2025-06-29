@@ -111,14 +111,14 @@ void BitVector::erase_bit(std::size_t idx)
     const std::size_t w_idx     = idx >> 6;         // word that holds the bit
     const std::size_t b_idx     = idx & 63;         // bit offset inside that word
 
-    /* 1.  Remove the bit inside its own word.  */
+    /* Remove the bit inside its own word.  */
     std::uint64_t low_mask  = (b_idx == 0) ? 0ULL : ((1ULL << b_idx) - 1ULL);
     std::uint64_t word      = words_[w_idx];
     std::uint64_t upper     = (b_idx == 63) ? 0ULL : (word >> (b_idx + 1));
 
     words_[w_idx] = (word & low_mask) | (upper << b_idx);
 
-    /* 2.  Propagate the one-bit left shift across following words.  */
+    /* Propagate the one-bit left shift across following words.  */
     for (std::size_t w = w_idx + 1; w < old_words; ++w) {
         std::uint64_t cur   = words_[w];
         std::uint64_t carry = cur & 1ULL;            // LSB that wraps
@@ -126,7 +126,7 @@ void BitVector::erase_bit(std::size_t idx)
         words_[w]      = cur >> 1;                  // shift current word right by 1
     }
 
-    /* 3.  Update length and storage.  */
+    /* Update length and storage.  */
     --bit_len_;
 
     // If the last 64-bit word is now completely out of range, drop it.

@@ -115,14 +115,14 @@ QuantumCircuit PhasePolynomial::to_circ() const {
 
         /* forward CX fan-in */
         for (std::size_t c : ones) {
-            qc.add_cnot(pivot, c);
+            qc.add_cnot(c, pivot);               // CNOT from control to pivot
         }
 
         qc.add_t(pivot);                               // T gate
 
         /* uncompute CX fan-in (reverse order) */
         for (auto it = ones.rbegin(); it != ones.rend(); ++it) {
-            qc.add_cnot(pivot, *it);
+            qc.add_cnot(*it, pivot);           // CNOT from pivot to control
         }
     }
     return qc;

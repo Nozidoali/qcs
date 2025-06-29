@@ -90,11 +90,7 @@ QuantumCircuit optimize_t_gates(const QuantumCircuit& circ) {
         out += p.clifford_correction(original, n).to_circ();
         out += p.to_circ();
         if (i < tableau_vec.size()) {
-            out += tableau_vec[i].to_circ(true);
-            std::cout << "Phase polynomial " << i << " applied.\n";
-            std::cout << phase_polynomials[i].to_string() << '\n';
-            std::cout << "Tableau vector " << i << " applied.\n";
-            std::cout << tableau_vec[i].to_row_major().to_string() << '\n';
+            out += tableau_vec[i].to_row_major().to_circ(true);
         }
     }
 

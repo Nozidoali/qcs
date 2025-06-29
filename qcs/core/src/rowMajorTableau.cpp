@@ -247,7 +247,17 @@ QuantumCircuit RowMajorTableau::to_circ(bool inverse) const
     QuantumCircuit qc;
     qc.request_qubits(n);
 
+    std::cout << tab.to_string() << '\n';
+
     for (std::size_t i = 0; i < n; ++i) {
+
+        // std::cout << "Processing qubit " << i << ":\n";
+        // std::cout << "Stabilizer X: " << tab.x_row(i).to_string() << '\n';
+        // std::cout << "Stabilizer Z: " << tab.z_row(i).to_string() << '\n';
+
+        // std::cout << "Stabilizer X bit len = " << tab.x_row(i).size() << '\n';
+        // std::cout << "Stabilizer Z bit len = " << tab.z_row(i).size() << '\n';
+
         // Step 1: Find pivot in stabilizer X matrix
         std::optional<std::size_t> index_opt;
         for (std::size_t j = 0; j < n; ++j) {
@@ -256,6 +266,9 @@ QuantumCircuit RowMajorTableau::to_circ(bool inverse) const
                 break;
             }
         }
+
+        // std::cout << "Find pivot index for stabilizer X at qubit " << i << ": ";
+        // std::cout << (index_opt.has_value() ? std::to_string(index_opt.value()) : "none") << '\n';
 
         if (index_opt.has_value()) {
             std::size_t index = index_opt.value();
@@ -274,6 +287,8 @@ QuantumCircuit RowMajorTableau::to_circ(bool inverse) const
                 qc.add_s(index);
             }
 
+            // std::cout << "Applying H to qubit " << index << ":\n";
+
             // Step 4: Apply H
             tab.append_h(index);
             qc.add_h(index);
@@ -281,17 +296,24 @@ QuantumCircuit RowMajorTableau::to_circ(bool inverse) const
 
         // Step 5: Ensure Z on (i, i)
         if (!tab.z_row(i).get(i)) {
+
+            std::cout << "Z pivot missing at qubit " << i << std::endl;
+            
             std::size_t z_pivot = i + 1;
             while (z_pivot < n && !tab.z_row(z_pivot).get(i)) ++z_pivot;
             if (z_pivot < n) {
                 tab.append_cx(i, z_pivot);
                 qc.add_cnot(i, z_pivot);
             }
+            std::cout << "Adding CNOT ctrl=" << i << " target=" << z_pivot << std::endl;
         }
 
         // Step 6: Clear off-diagonal Zs in stabilizers
         for (std::size_t j = 0; j < n; ++j) {
             if (tab.z_row(j).get(i) && j != i) {
+
+                std::cout << "Clearing off-diagonal Z at qubit " << j << " for stabilizer " << i << std::endl;
+
                 tab.append_cx(j, i);
                 qc.add_cnot(j, i);
             }
@@ -300,14 +322,20 @@ QuantumCircuit RowMajorTableau::to_circ(bool inverse) const
         // Step 7: Clear off-diagonal Xs in destabilisers (column i+n)
         for (std::size_t j = 0; j < n; ++j) {
             if (tab.x_row(j).get(i + n) && j != i) {
+
+                std::cout << "Clearing off-diagonal X at qubit " << j << " for destabilisers " << i + n << std::endl;
+
                 tab.append_cx(i, j);
                 qc.add_cnot(i, j);
             }
         }
-
+        
         // Step 8: Clear off-diagonal Zs in destabilisers (column i+n)
         for (std::size_t j = 0; j < n; ++j) {
             if (tab.z_row(j).get(i + n) && j != i) {
+
+                std::cout << "Clearing off-diagonal Z at qubit " << j << " for destabilisers " << i + n << std::endl;
+
                 tab.append_cx(i, j);
                 qc.add_cnot(i, j);
                 tab.append_s(j);
@@ -316,23 +344,38 @@ QuantumCircuit RowMajorTableau::to_circ(bool inverse) const
                 qc.add_cnot(i, j);
             }
         }
-
+        
         // Step 9: Apply diagonal S if needed in destabiliser
         if (tab.z_row(i).get(i + n)) {
+
+            std::cout << "Applying S to destabilisers at qubit " << i + n << std::endl;
+
             tab.append_s(i);
             qc.add_s(i);
         }
 
         // Step 10: Sign corrections
         if (tab.sign_bit(i)) {
+
+            std::cout << "Applying X to qubit " << i << " due to sign correction\n";
+
             tab.append_x(i);
             qc.add_x(i);
         }
         if (tab.sign_bit(i + n)) {
+
+            std::cout << "Applying Z to qubit " << i << " due to sign correction\n";
+
             tab.append_z(i);
             qc.add_z(i);
         }
+
+        std::cout << "After processing qubit " << i << ":\n";
+        std::cout << qc.to_string() << '\n';
+        std::cout << tab.to_string() << '\n';
     }
+
+    std::cout << "Final tableau:\n" << tab.to_string() << '\n';
 
     // Step 11: Reverse + add Z if !inverse
     if (!inverse) {

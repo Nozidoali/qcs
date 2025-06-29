@@ -1,5 +1,7 @@
 #include "columnMajorTableau.hpp"
 #include <optional>
+#include <iostream>
+
 namespace core {
 
 /* ---- ctor: initialise Z_i stabilizers and X_i destabilizers ---- */
@@ -205,5 +207,6 @@ QuantumCircuit ColumnMajorTableau::to_circ(bool inverse) const {
     std::reverse(qc.gates.begin(), qc.gates.end());
     return qc;
 }
+
 
 } // namespace core

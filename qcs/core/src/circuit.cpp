@@ -31,7 +31,7 @@ void QuantumCircuit::request_qubits(std::size_t count) {
  *  Gate creation shortcuts                                   *
  * ---------------------------------------------------------- */
 void QuantumCircuit::add_cnot(std::uint16_t ctrl, std::uint16_t targ) {
-    gates.emplace_back(GateType::CNOT, ctrl, false, targ);
+    gates.emplace_back(GateType::CNOT, targ, false, ctrl);
 }
 
 void QuantumCircuit::add_t(std::uint16_t targ) {
@@ -199,6 +199,18 @@ std::size_t QuantumCircuit::t_depth() const {
         max_d = std::max(max_d, t_depth_of(q));
     }
     return max_d;
+}
+
+std::string QuantumCircuit::to_string() const {
+    std::string result;
+    result.reserve(gates.size() * 20);  // rough estimate for string size
+
+    for (const auto& g : gates) {
+        result += g.to_string();
+        result += '\n';
+    }
+
+    return result;
 }
 
 } // namespace core

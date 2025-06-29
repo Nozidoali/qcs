@@ -39,6 +39,8 @@ public:
     std::size_t last_t() const;
     std::size_t t_depth_of(std::uint32_t qubit) const;
     std::size_t t_depth() const;
+
+    std::string to_string() const;
 };
 
 } // namespace core
