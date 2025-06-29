@@ -1,6 +1,8 @@
-#include "rowMajorTableau.hpp"
-#include <algorithm>
+#include "rowMajorTableau.hpp"  // Replace with actual header path
+#include <iomanip>
 #include <sstream>
+#include <iostream>
+#include <string>
 
 namespace core {
 
@@ -91,10 +93,12 @@ void RowMajorTableau::append_x(std::size_t q) { signs_.xor_with(z_[q]); }
 void RowMajorTableau::append_z(std::size_t q) { signs_.xor_with(x_[q]); }
 
 void RowMajorTableau::append_v(std::size_t q) {
-    BitVector a = x_[q]; a.negate();
-    a.and_with(z_[q]);
-    signs_.xor_with(a);
-    x_[q].xor_with(z_[q]);
+    // V gate: Z → Y = iXZ → flip sign when X=0 and Z=1
+    BitVector a = x_[q]; 
+    a.negate();                      // a = ~x
+    a.and_with(z_[q]);              // a = ~x & z
+    signs_.xor_with(a);             // flip sign where Z-only
+    x_[q].xor_with(z_[q]);          // X ← X ⊕ Z
 }
 
 void RowMajorTableau::append_s(std::size_t q) {
@@ -105,7 +109,15 @@ void RowMajorTableau::append_s(std::size_t q) {
 }
 
 void RowMajorTableau::append_h(std::size_t q) {
-    append_s(q); append_v(q); append_s(q);
+    // append_s(q); append_v(q); append_s(q); // H = S·V·S
+    BitVector& x = x_[q];
+    BitVector& z = z_[q];
+
+    BitVector y_mask = x;      // Y = X & Z
+    y_mask.and_with(z);
+    signs_.xor_with(y_mask);   // flip sign if originally Y
+
+    x.swap_with(z);            // X ↔ Z
 }
 
 void RowMajorTableau::append_cx(std::size_t ctrl, std::size_t targ) {
@@ -182,10 +194,6 @@ void RowMajorTableau::prepend_cx(std::size_t ctrl, std::size_t targ) {
     insert_pauli_product(dest_c, ctrl + n_);
 }
 
-
-/* ----------------------------------------------------------- *
- *  I / X / Y / Z pretty-printer for the tableau                *
- * ----------------------------------------------------------- */
 std::string RowMajorTableau::to_string() const
 {
     const auto pauli_char = [](bool z, bool x) -> char {
@@ -195,30 +203,35 @@ std::string RowMajorTableau::to_string() const
 
     std::ostringstream out;
 
-    /* -------- stabiliser rows -------- */
+    out << "Row-major stabiliser tableau (Aaronson-Gottesman encoding)\n";
+    out << "n_qubits = " << n_ << "\n";
+    out << "Rows  |  Sign  |  Pauli String\n";
+    out << "------+--------+----------------\n";
+    
+    // Stabiliser rows (indices 0..n-1)
     for (std::size_t i = 0; i < n_; ++i) {
-        out << (signs_.get(i) ? '-' : '+') << ' ';
+        out << ' ' << std::setw(3) << i << "  |   "
+        << (signs_.get(i) ? '-' : '+') << "    |  ";
         for (std::size_t j = 0; j < n_; ++j) {
-            bool z = z_[i].get(j);
-            bool x = x_[i].get(j);
-            out << pauli_char(z, x);
+            out << pauli_char(z_[j].get(i), x_[j].get(i));
         }
         out << '\n';
     }
 
-    /* separator */
-    out << std::string(n_ + 2, '-') << '\n';
+    // Separator line
+    out << "------+--------+----------------\n";
 
-    /* -------- destabiliser rows -------- */
+    // Destabiliser rows (indices n..2n-1)
     for (std::size_t i = 0; i < n_; ++i) {
-        out << (signs_.get(n_ + i) ? '-' : '+') << ' ';
+        std::size_t idx = n_ + i;
+        out << ' ' << std::setw(3) << idx << "  |   "
+            << (signs_.get(idx) ? '-' : '+') << "    |  ";
         for (std::size_t j = 0; j < n_; ++j) {
-            bool z = z_[i].get(n_ + j);
-            bool x = x_[i].get(n_ + j);
-            out << pauli_char(z, x);
+            out << pauli_char(z_[j].get(idx), x_[j].get(idx));
         }
         out << '\n';
     }
+
     return out.str();
 }
 
@@ -233,6 +246,8 @@ QuantumCircuit RowMajorTableau::to_circ(bool inverse) const
 
     QuantumCircuit qc;  qc.request_qubits(n);
 
+    std::cout << tab.to_string() << std::endl;
+
     for (std::size_t i = 0; i < n; ++i) {
         /* ----- Handle Xs in stabiliser rows ----- */
         bool any_x = false;
@@ -244,6 +259,10 @@ QuantumCircuit RowMajorTableau::to_circ(bool inverse) const
             /* Clear other Xs with CX fan-out (control = index, target = j) */
             for (std::size_t j = i + 1; j < n; ++j)
                 if (tab.x_row(j).get(i) && j != index) {
+
+                    std::cout << "Clearing X in stabiliser row " << j
+                              << " with control " << index << std::endl;
+
                     tab.append_cx(index, j);
                     qc.add_cnot(static_cast<std::uint16_t>(index),
                                 static_cast<std::uint16_t>(j));
@@ -251,11 +270,18 @@ QuantumCircuit RowMajorTableau::to_circ(bool inverse) const
 
             /* Add S if pivot also has Z */
             if (tab.z_row(index).get(i)) {
+
+                std::cout << "Adding S for stabiliser row " << index
+                          << " with pivot " << i << std::endl;
+
                 tab.append_s(index);
                 qc.add_s(static_cast<std::uint16_t>(index));
             }
 
             /* Finally Hadamard on pivot qubit */
+            std::cout << "Adding H for stabiliser row " << index
+                      << " with pivot " << i << std::endl;
+
             tab.append_h(index);
             qc.add_h(static_cast<std::uint16_t>(index));
         }
@@ -265,6 +291,10 @@ QuantumCircuit RowMajorTableau::to_circ(bool inverse) const
             std::size_t index2 = i + 1;
             while (index2 < n && !tab.z_row(index2).get(i)) ++index2;
             if (index2 < n) {
+                std::cout << "Clearing Z in stabiliser row " << index2
+                          << " with control " << i << " by adding CX" 
+                          << std::endl;
+
                 tab.append_cx(i, index2);   // control = i, target = index2
                 qc.add_cnot(static_cast<std::uint16_t>(i),
                             static_cast<std::uint16_t>(index2));
@@ -274,6 +304,11 @@ QuantumCircuit RowMajorTableau::to_circ(bool inverse) const
         /* Clear off-diagonal Zs in stabilisers (control = j, target = i) */
         for (std::size_t j = 0; j < n; ++j)
             if (tab.z_row(j).get(i) && j != i) {
+
+                std::cout << "Clearing Z in stabiliser row " << j
+                          << " with control " << i << " by adding CX"
+                          << std::endl;
+
                 tab.append_cx(j, i);
                 qc.add_cnot(static_cast<std::uint16_t>(j),
                             static_cast<std::uint16_t>(i));
@@ -282,6 +317,10 @@ QuantumCircuit RowMajorTableau::to_circ(bool inverse) const
         /* Clear Xs in destabilisers (column i+n) */
         for (std::size_t j = 0; j < n; ++j)
             if (tab.x_row(j).get(i + n) && j != i) {
+
+                std::cout << "Clearing X in destabiliser row " << j
+                          << " with control " << i << std::endl;
+
                 tab.append_cx(i, j);        // control = i, target = j
                 qc.add_cnot(static_cast<std::uint16_t>(i),
                             static_cast<std::uint16_t>(j));
@@ -290,6 +329,10 @@ QuantumCircuit RowMajorTableau::to_circ(bool inverse) const
         /* Handle Zs in destabilisers (column i+n) */
         for (std::size_t j = 0; j < n; ++j)
             if (tab.z_row(j).get(i + n) && j != i) {
+
+                std::cout << "Clearing Z in destabiliser row " << j
+                          << " with control " << i << std::endl;
+
                 tab.append_cx(i, j);        // control = i, target = j
                 qc.add_cnot(static_cast<std::uint16_t>(i),
                             static_cast<std::uint16_t>(j));

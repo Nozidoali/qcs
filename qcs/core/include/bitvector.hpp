@@ -22,6 +22,7 @@ public:
     /* ---- bulk ops (up to min(len,other.len)) ---- */
     void xor_with(const BitVector& other);
     void and_with(const BitVector& other);
+    void swap_with(BitVector& other);                  // swap contents
     void negate();                                            // bitwise NOT (only defined bits)
 
     /* ---- conversions ---- */

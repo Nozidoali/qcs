@@ -67,6 +67,13 @@ void BitVector::and_with(const BitVector& other) {
     trim_last_word();
 }
 
+void BitVector::swap_with(BitVector& other) {
+    std::swap(words_, other.words_);
+    std::swap(bit_len_, other.bit_len_);
+    trim_last_word();  // clear padding bits in the new last word
+    other.trim_last_word();
+}
+
 void BitVector::negate() {
     for (auto& w : words_) w = ~w;
     trim_last_word();

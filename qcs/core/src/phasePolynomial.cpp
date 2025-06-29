@@ -64,13 +64,13 @@ PhasePolynomial::clifford_correction(
     RowMajorTableau tab(nq);
 
     // print table_ and ref for debugging
-    for (const auto& row : table_) {
-        std::cout << "Phase Polynomial Row: " << row.to_string() << std::endl;
-    }
+    // for (const auto& row : table_) {
+    //     std::cout << "Phase Polynomial Row: " << row.to_string() << std::endl;
+    // }
 
-    for (const auto& row : ref) {
-        std::cout << "Reference Row: " << row.to_string() << std::endl;
-    }
+    // for (const auto& row : ref) {
+    //     std::cout << "Reference Row: " << row.to_string() << std::endl;
+    // }
 
     /* pair-wise CZ phase fix */
     for (std::size_t i = 0; i < nq; ++i) {
@@ -80,7 +80,7 @@ PhasePolynomial::clifford_correction(
 
             std::size_t diff = ((z1 + 8) - z2) & 7U;   // (z1 - z2) mod 8
             for (std::size_t k = 0; k < diff / 2; ++k) {
-                std::cout << "Appending CZ for qubits " << i << " and " << j << std::endl;
+                // std::cout << "Appending CZ for qubits " << i << " and " << j << std::endl;
                 tab.append_cz(i, j);
             }
         }
@@ -91,7 +91,7 @@ PhasePolynomial::clifford_correction(
         std::size_t diff = ((z1s + 8) - z2s) & 7U;
 
         for (std::size_t k = 0; k < diff / 2; ++k) {
-            std::cout << "Appending S for qubit " << i << std::endl;
+            // std::cout << "Appending S for qubit " << i << std::endl;
             tab.append_s(i);
         }
     }

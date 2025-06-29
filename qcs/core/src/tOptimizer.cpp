@@ -65,6 +65,8 @@ QuantumCircuit TOptimizer::optimize(const QuantumCircuit& circ,
 
         /* ---------- process post-T slice gates ---------- */
         switch (g.type()) {
+
+            
         /* ── Clifford ────────────────────────────────── */
         case GateType::H:
             flush_poly(out);
