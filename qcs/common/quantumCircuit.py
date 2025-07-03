@@ -193,6 +193,12 @@ class QuantumCircuit:
         self.gates.append({"name": "Tof", "ctrl1": c1, "ctrl2": c2, "target": target})
         if p1: self.add_x(c1)
         if p2: self.add_x(c2)
+        
+    def add_clean_toffoli(self, c1: int, c2: int, target: int) -> None:
+        self.add_h(target)
+        for gate in decompose_ccz_clean_ancilla(c1, c2, target):
+            self.add_gate(gate)
+        self.add_h(target)
     
     def append(self, other: 'QuantumCircuit') -> None:
         assert isinstance(other, QuantumCircuit), "Can only append another QuantumCircuit"
@@ -272,6 +278,8 @@ class QuantumCircuit:
                 qasm_str += f"cz q[{gate['ctrl']}], q[{gate['target']}];\n"
             elif gate["name"] == "X":
                 qasm_str += f"x q[{gate['target']}];\n"
+            elif gate["name"] == "Z":
+                qasm_str += f"z q[{gate['target']}];\n"
             elif gate["name"] == "HAD":
                 qasm_str += f"h q[{gate['target']}];\n"
             elif gate["name"] == "S":
@@ -294,6 +302,56 @@ class QuantumCircuit:
             return circuit.to_qasm()
         return qasm_str
     
+    def run_zx(self, **kwargs) -> 'QuantumCircuit':
+        import pyzx as zx
+        circuit = zx.Circuit.from_qasm(self.to_qasm())
+        graph = circuit.to_graph()
+        zx.simplify.full_reduce(graph, quiet=True)
+        circuit = zx.extract_circuit(graph, up_to_perm=False)
+        circuit = circuit.to_basic_gates()
+        circuit = circuit.split_phase_gates()
+        return QuantumCircuit.from_zx_circuit(circuit)
+
+    def to_qc(self, **kwargs) -> str:
+        inputs = kwargs.get("inputs", [])
+        qubits = [f"q{i}" for i in range(self.n_qubits)]
+
+        # Use provided input names if available
+        if inputs and len(inputs) == self.n_qubits:
+            qubits = inputs
+
+        # Header
+        qc_str = f".v {' '.join(qubits)}\n"
+        qc_str += f".i {' '.join(inputs) if inputs else ' '.join(qubits)}\n\n"
+        qc_str += "BEGIN\n\n"
+
+        # Body
+        for gate in self.gates:
+            name = gate["name"]
+            if name == "Tof":
+                qc_str += f"tof {qubits[gate['ctrl1']]} {qubits[gate['ctrl2']]} {qubits[gate['target']]}\n"
+            elif name == "CNOT":
+                qc_str += f"tof {qubits[gate['ctrl']]} {qubits[gate['target']]}\n"
+            elif name == "CZ":
+                qc_str += f"Z {qubits[gate['ctrl']]} {qubits[gate['target']]}\n"
+            elif name == "X":
+                qc_str += f"X {qubits[gate['target']]}\n"
+            elif name == "HAD":
+                qc_str += f"H {qubits[gate['target']]}\n"
+            elif name == "S":
+                qc_str += f"S {qubits[gate['target']]}\n"
+            elif name == "T":
+                qc_str += f"T {qubits[gate['target']]}\n"
+            elif name == "Tdg":
+                qc_str += f"T {qubits[gate['target']]}\n"
+                qc_str += f"S {qubits[gate['target']]}\n"
+                qc_str += f"Z {qubits[gate['target']]}\n"
+            else:
+                raise NotImplementedError(f"Unsupported gate: {name}")
+
+        qc_str += "\nEND\n"
+        return qc_str
+
     @staticmethod
     def from_zx_circuit(qc) -> 'QuantumCircuit':
         circuit = QuantumCircuit()

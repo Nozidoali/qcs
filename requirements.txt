@@ -7,3 +7,6 @@ matplotlib
 pandas
 
 pygraphviz
+
+qiskit
+qiskit-aer
