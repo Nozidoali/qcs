@@ -87,7 +87,7 @@ class QuantumCircuit:
                 _circuit.gates.extend(decompose_toffoli(gate["ctrl1"], gate["ctrl2"], gate["target"]))
             else:
                 _circuit.add_gate(gate)
-        return _circuit.cleanup_dangling()
+        return _circuit.cleanup_dangling_hadamard()
     
     def hadamard_gadgetization(self, allow_mapping: bool = False) -> 'QuantumCircuit':
         if allow_mapping:
@@ -160,7 +160,7 @@ class QuantumCircuit:
                 _circuit.add_gate(_mapped_gate)
         return _circuit
     
-    def cleanup_dangling(self) -> 'QuantumCircuit':
+    def cleanup_dangling_hadamard(self) -> 'QuantumCircuit':
         _circuit = QuantumCircuit()
         _circuit.request_qubits(self.n_qubits)
         is_had: dict[int, bool] = {i: False for i in range(self.n_qubits)}
@@ -177,6 +177,28 @@ class QuantumCircuit:
             if is_had[j]:
                 _circuit.add_gate({"name": "HAD", "target": j})
                 is_had[j] = False
+        return _circuit
+
+    def optimize_cnot_phase_regions(self) -> 'QuantumCircuit':
+        _circuit = QuantumCircuit()
+        _circuit.request_qubits(self.n_qubits)
+
+        buffer = []
+
+        for gate in self.gates:
+            if gate["name"] in {"CNOT", "S", "T", "Tdg", "Z"}:
+                buffer.append(gate)
+            else:
+                if buffer:
+                    optimized = self._optimize_cnot_phase_block(buffer)
+                    _circuit.extend(optimized.gates)
+                    buffer = []
+                _circuit.add_gate(gate)
+
+        if buffer:
+            optimized = self._optimize_cnot_phase_block(buffer)
+            _circuit.extend(optimized.gates)
+
         return _circuit
 
     def request_qubit(self) -> int:
