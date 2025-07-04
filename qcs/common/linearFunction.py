@@ -103,7 +103,7 @@ def reduce_to_diagonal(matrix: np.ndarray, allow_swap: bool = True, verbose: boo
     Heuristic to transform a binary matrix to diagonal using CNOTs and optional swaps.
     
     Parameters:
-        matrix (np.ndarray): A binary n×n matrix (assumed invertible).
+        matrix (np.ndarray): A binary n by n matrix (assumed invertible).
         allow_swap (bool): If True, allows reordering rows. If False, enforces diagonal order using swaps.
         verbose (bool): If True, prints progress.
 
@@ -155,6 +155,11 @@ def reduce_to_diagonal(matrix: np.ndarray, allow_swap: bool = True, verbose: boo
         ops.append({"name": "CNOT", "ctrl": int(ctrl), "target": int(target)})
         if verbose:
             print(f"Row {target} ^= Row {ctrl} (CNOT)")
+
+    if not is_one_hot_matrix(mat):
+        print("Matrix after reduction:")
+        print(mat)
+        raise RuntimeError("Matrix did not reduce to one-hot form.")
 
 
     if allow_swap:

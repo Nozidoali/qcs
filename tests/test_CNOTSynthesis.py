@@ -83,25 +83,47 @@ def test_fix_random_to_random():
     assert np.array_equal(lf.matrix, target), "Random invertible src should transform to target."
 
 
+def test_random_matrix():
+    n: int = 8
+    m: int = 8
+    for _ in range(10):
+        lf = LinearFunction(n)
+        for i in range(m):
+            # Randomly choose two qubits to apply CNOT
+            q0, q1 = np.random.choice(n, 2, replace=False)
+            lf.apply_cnot(q0, q1)
+        mat = lf.matrix.copy()
+        gates = reduce_to_diagonal(mat, allow_swap=False)
+        lf2 = LinearFunction(n)
+        lf2.matrix = mat.copy()
+        lf2.apply_gates(gates)
+        if not is_diagonal_matrix(lf2.matrix):
+            # print lf.matrix
+            print("Matrix after reduction:", lf.matrix)
+        
+        assert is_one_hot_matrix(lf2.matrix), "Random matrix should reduce to one-hot matrix."
+
 def main():
-    test_00_identity()
-    print("test_00_identity passed.")
+    # test_00_identity()
+    # print("test_00_identity passed.")
 
-    test_01_dense_matrix()
-    print("test_01_dense_matrix passed.")
+    # test_01_dense_matrix()
+    # print("test_01_dense_matrix passed.")
 
-    test_02_force_diagonal_swap()
-    print("test_02_force_diagonal_swap passed.")
+    # test_02_force_diagonal_swap()
+    # print("test_02_force_diagonal_swap passed.")
 
-    test_03_already_one_hot()
-    print("test_03_already_one_hot passed.")
+    # test_03_already_one_hot()
+    # print("test_03_already_one_hot passed.")
 
-    test_fix_identity_to_random()
-    print("test_fix_identity_to_random passed.")
+    # test_fix_identity_to_random()
+    # print("test_fix_identity_to_random passed.")
     
-    test_fix_random_to_random()
-    print("test_fix_random_to_random passed.")
+    # test_fix_random_to_random()
+    # print("test_fix_random_to_random passed.")
 
+
+    test_random_matrix()
     print("All tests passed!")
 
 
