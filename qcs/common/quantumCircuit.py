@@ -203,7 +203,63 @@ class QuantumCircuit:
             _circuit.extend(optimized_gates)
 
         return _circuit
-    
+
+    def optimize_cnot_regions(self) -> list[dict]:
+        """
+        Returns
+        -------
+        list[dict]
+            A copy of the circuit’s gate list with trivial CNOT pairs removed.
+            * Only contiguous runs of CNOTs that **share the same target**
+              are analysed.
+            * Within such a run, any control that appears an even number of
+              times cancels out (since CNOT² = I).
+            * Phase gates (S, T, Tdg, Z) break a CNOT run but are otherwise
+              passed through unchanged.
+        """
+        gates = self.gates            # shorthand
+        out: list[dict] = []
+        i = 0
+        n = len(gates)
+
+        while i < n:
+            g = gates[i]
+
+            # ── Start of a run of CNOTs on the same target ──────────────
+            if g["name"] == "CNOT":
+                tgt = g["target"]
+                parity: dict[int, int] = {}
+                order: list[int] = []
+
+                j = i
+                # collect consecutive CNOTs with identical target
+                while (
+                    j < n and gates[j]["name"] == "CNOT"
+                    and gates[j]["target"] == tgt
+                ):
+                    ctrl = gates[j]["ctrl"]
+                    parity[ctrl] = parity.get(ctrl, 0) ^ 1   # toggle even/odd
+                    if ctrl not in order:                    # record first-seen
+                        order.append(ctrl)
+                    j += 1
+
+                # emit one CNOT per control with odd parity
+                for ctrl in order:
+                    if parity[ctrl]:
+                        out.append({"name": "CNOT", "ctrl": ctrl, "target": tgt})
+
+                i = j           # skip the whole run
+                continue
+
+            # ── Any non-CNOT gate (or CNOT with different target) ───────
+            out.append(g)
+            i += 1
+            
+        _circuit = QuantumCircuit()
+        _circuit.n_qubits = self.n_qubits
+        _circuit.gates = out
+        return _circuit
+
     def _optimize_cnot_phase_block(self, gates: list[dict]) -> 'QuantumCircuit':
         from .linearFunction import optimize_cnot_phase_block
         optimized_gates = optimize_cnot_phase_block(gates, self.n_qubits)

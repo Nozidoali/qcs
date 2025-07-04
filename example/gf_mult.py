@@ -107,7 +107,7 @@ if __name__ == "__main__":
     
     circuit = qcs.QuantumCircuit.from_file("./data/input/qc/gf_mult2/ours.qc")
     qcs.plot_circuit(circuit, "gfmult2_ours.png")
-    circuit = circuit.optimize_cnot_phase_regions()
+    circuit = circuit.optimize_cnot_regions()
     qcs.plot_circuit(circuit, "gfmult2_ours_opt.png")
     
     print(circuit.num_t)
