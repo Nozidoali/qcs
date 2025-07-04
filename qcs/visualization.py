@@ -1,10 +1,10 @@
 import matplotlib.pyplot as plt
 import matplotlib.transforms as mtrans
-import pygraphviz as pgv
 
 from .common import QuantumCircuit, LogicNetwork
 
 def plot_network(network: LogicNetwork, **kwargs) -> None:
+    import pygraphviz as pgv
     show_name: bool = kwargs.get("show_name", True)
     file_name: str = kwargs.get("file_name", "network.png")
     NEW_LINE: str = "\\n"

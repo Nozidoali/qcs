@@ -87,8 +87,8 @@ def gfmult2_impl5() -> qcs.QuantumCircuit:
     return circuit, inputs
 
 if __name__ == "__main__":
-    circuit, inputs = gfmult2_impl1()
-    open("gfmult2_impl1.qc", "w").write(circuit.to_qc(inputs=inputs))
+    # circuit, inputs = gfmult2_impl1()
+    # open("gfmult2_impl1.qc", "w").write(circuit.to_qc(inputs=inputs))
 
     # circuit, inputs = gfmult2_impl2()
     # open("gfmult2_impl2.qc", "w").write(circuit.to_qc(inputs=inputs))
@@ -105,8 +105,10 @@ if __name__ == "__main__":
     # circuit = qcs.QuantumCircuit.from_file("sota.qc")
     # qcs.plot_circuit(circuit, "gfmult2_sota.png")
     
-    circuit = qcs.QuantumCircuit.from_file("ours.qc")
+    circuit = qcs.QuantumCircuit.from_file("./data/input/qc/gf_mult2/ours.qc")
     qcs.plot_circuit(circuit, "gfmult2_ours.png")
+    circuit = circuit.optimize_cnot_phase_regions()
+    qcs.plot_circuit(circuit, "gfmult2_ours_opt.png")
     
     print(circuit.num_t)
     

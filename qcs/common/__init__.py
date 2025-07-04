@@ -5,3 +5,4 @@ from .pauliProduct          import *   # noqa: F401,F403
 from .phasePolynomial       import *   # noqa: F401,F403
 from .rowMajorTableau       import *   # noqa: F401,F403
 from .columnMajorTableau    import *   # noqa: F401,F403
+from .linearFunction        import *   # noqa: F401,F403

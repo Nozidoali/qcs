@@ -1,8 +1,6 @@
-from qiskit import QuantumCircuit as QiskitCircuit
-from qiskit_aer import AerSimulator
-
-
-def simulate_with_input_string(qcs_circuit, input_pattern: str, n_shots: int) -> QiskitCircuit:
+def simulate_with_input_string(qcs_circuit, input_pattern: str, n_shots: int):
+    from qiskit import QuantumCircuit as QiskitCircuit
+    from qiskit_aer import AerSimulator
     n = qcs_circuit.n_qubits
     qc = QiskitCircuit(n)
     

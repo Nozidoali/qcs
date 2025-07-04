@@ -21,7 +21,6 @@ ALL_AVAILABLE_GATES = [
     "CCZ",
 ]
 
-
 def is_unique(lst: list) -> bool:
     return len(lst) == len(set(lst))
 
@@ -77,6 +76,10 @@ class QuantumCircuit:
     def __init__(self):
         self.n_qubits: int = 0
         self.gates: list = []
+        
+    def extend(self, gates: list[dict]) -> None:
+        for gate in gates:
+            self.add_gate(gate)
         
     def to_basic_gates(self) -> 'QuantumCircuit':
         _circuit = QuantumCircuit()
@@ -190,16 +193,22 @@ class QuantumCircuit:
                 buffer.append(gate)
             else:
                 if buffer:
-                    optimized = self._optimize_cnot_phase_block(buffer)
-                    _circuit.extend(optimized.gates)
+                    optimized_gates = self._optimize_cnot_phase_block(buffer)
+                    _circuit.extend(optimized_gates)
                     buffer = []
                 _circuit.add_gate(gate)
 
         if buffer:
-            optimized = self._optimize_cnot_phase_block(buffer)
-            _circuit.extend(optimized.gates)
+            optimized_gates = self._optimize_cnot_phase_block(buffer)
+            _circuit.extend(optimized_gates)
 
         return _circuit
+    
+    def _optimize_cnot_phase_block(self, gates: list[dict]) -> 'QuantumCircuit':
+        from .linearFunction import optimize_cnot_phase_block
+        optimized_gates = optimize_cnot_phase_block(gates, self.n_qubits)
+        print(optimized_gates)
+        return optimized_gates
 
     def request_qubit(self) -> int:
         self.n_qubits += 1
