@@ -1,3 +1,5 @@
+from itertools import product
+
 ALL_AVAILABLE_GATES = [
     # CNOT: Controlled-NOT gate (2-qubit)
     "CNOT",
@@ -483,6 +485,68 @@ class QuantumCircuit:
         import pyzx as zx
         qc = zx.Circuit.from_qasm(qasm)
         return QuantumCircuit.from_zx_circuit(qc)
+
+    @staticmethod
+    def from_truth_table(truth_table: list[str], n: int, m: int) -> 'QuantumCircuit':
+        """
+        Generate a QROM circuit from a multi-output truth table using minterm enumeration
+        with ancilla reuse.
+
+        Parameters
+        ----------
+        truth_table : list[str]
+            List of m output strings, each of length 2^n, encoding Boolean outputs.
+        n : int
+            Number of input bits.
+        m : int
+            Number of output bits.
+
+        Returns
+        -------
+        QuantumCircuit
+            The quantum circuit implementing the QROM.
+        """
+        assert len(truth_table) == m
+        N = 2 ** n
+        assert all(len(tt) == N for tt in truth_table), "Each output string must be length 2^n"
+
+        qc = QuantumCircuit()
+        input_qubits = qc.request_qubits(n)
+        ancilla_qubits = qc.request_qubits(n - 1)
+        output_qubits = qc.request_qubits(m)
+
+        for i, input_bits in enumerate(product([0, 1], repeat=n)):
+            polarities = [not b for b in input_bits]
+
+            # Flip inputs where needed
+            for idx, flip in enumerate(polarities):
+                if flip:
+                    qc.add_x(input_qubits[idx])
+
+            # Compute minterm via AND ladder
+            work_bits = list(input_qubits)
+            for j in range(n - 1):
+                a = ancilla_qubits[j]
+                qc.add_toffoli(work_bits[j], work_bits[j + 1], a)
+                work_bits[j + 1] = a
+
+            minterm_result = work_bits[-1]
+
+            for out_idx in range(m):
+                if truth_table[out_idx][i] == "1":
+                    qc.add_cnot(minterm_result, output_qubits[out_idx])
+
+            # Uncompute
+            for j in reversed(range(n - 1)):
+                qc.add_toffoli(work_bits[j], input_qubits[j + 1], ancilla_qubits[j])
+                work_bits[j + 1] = input_qubits[j + 1]
+
+            for idx, flip in enumerate(polarities):
+                if flip:
+                    qc.add_x(input_qubits[idx])
+
+        return qc
+
 
     @property
     def num_t(self) -> int:
