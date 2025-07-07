@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
-import matplotlib.transforms as mtrans
+import matplotlib.patches as patches
 
+import matplotlib.transforms as mtrans
+import numpy as np
 from .common import QuantumCircuit, LogicNetwork
 
 def plot_network(network: LogicNetwork, **kwargs) -> None:
@@ -83,3 +85,52 @@ def plot_circuit(circ, fn=None):
             qt = y.get(g.get("target", 0), 0); square(p, qt, 'k'); text(p, qt, n, 'white')
             
     (plt.savefig(fn, bbox_inches="tight") if fn else plt.show()) and plt.close(fig)
+
+
+def plot_truth_table(
+    truth_table: list[str],
+    n: int,
+    m: int,
+    filename: str,
+    input_names: list[str] = None,
+    output_names: list[str] = None
+) -> None:
+    BOX_SIZE = 0.8
+    N = 2 ** n
+    assert len(truth_table) == m and all(len(row) == N for row in truth_table)
+
+    input_bits = np.array([[int(b) for b in format(i, f"0{n}b")[::-1]] for i in range(N)]).T
+    output_bits = np.array([[int(b) for b in row] for row in truth_table])
+    data = np.vstack((input_bits, output_bits))
+
+    if input_names is None:
+        input_names = [f"in{i}" for i in range(n)]
+    if output_names is None:
+        output_names = [f"out{i}" for i in range(m)]
+
+    row_labels = input_names + output_names
+    assert len(row_labels) == n + m
+
+    fig, ax = plt.subplots(figsize=(N * 0.4 + 1.5, (n + m) * 0.4))
+    ax.set_xlim(-1, N)
+    ax.set_ylim(-0.5, n + m - 0.5)
+    ax.invert_yaxis()
+
+    for row in range(n + m):
+        ax.text(-1, row, row_labels[row], ha='right', va='center', fontsize=10, fontweight='bold')
+        for col in range(N):
+            val = data[row][col]
+            ax.text(col, row, str(val), ha='center', va='center', fontsize=10)
+            if row >= n and val == 1:
+                rect = patches.Rectangle((col - BOX_SIZE/2, row - BOX_SIZE/2), BOX_SIZE, BOX_SIZE, linewidth=1.2, edgecolor='black', facecolor='none')
+                ax.add_patch(rect)
+
+    ax.axhline(y=n - 0.5, color='black', linewidth=1)
+    ax.axvline(x=-0.5, color='black', linewidth=1)
+
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.axis('off')
+    plt.tight_layout(pad=0.3)
+    plt.savefig(filename, dpi=200)
+    plt.close()

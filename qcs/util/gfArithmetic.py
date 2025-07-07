@@ -120,10 +120,13 @@ def synthesize_gf_mult(n: int, verbose: bool = False) -> list[str]:
         print("No irreducible polynomial found for degree", n)
         return None
     
+from qcs.common import QuantumCircuit
+from qcs.visualization import plot_circuit, plot_truth_table
+from qcs import pattern_rewrite
+    
 if __name__ == "__main__":
     n = 2  # Degree of the polynomial
-    verbose = True  # Set to True to print the truth table
-    bit_tables = synthesize_gf_mult(n, verbose)
+    bit_tables = synthesize_gf_mult(n, verbose=False)
     
     if bit_tables:
         print("\nGenerated bit tables:")
@@ -131,3 +134,11 @@ if __name__ == "__main__":
             print(f"Bit {i}: {bits}")
     else:
         print("Failed to generate bit tables.")
+        
+    plot_truth_table(bit_tables, n=2*n, m=n, filename="gf_mult_truth_table.png")
+    
+    circuit = QuantumCircuit.from_truth_table(bit_tables, n=2*n, m=n)
+    plot_circuit(circuit, "gf_mult_circuit.png")
+    
+    optimized_circuit = pattern_rewrite(circuit)
+    plot_circuit(optimized_circuit, "gf_mult_circuit_optimized.png")

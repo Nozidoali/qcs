@@ -86,6 +86,28 @@ def gfmult2_impl5() -> qcs.QuantumCircuit:
     
     return circuit, inputs
 
+def fast_todd_optimize(circuit: qcs.QuantumCircuit) -> qcs.QuantumCircuit:
+    import os
+    import subprocess
+    
+    qcfile = "tmp.qc"
+    qcfileout = "output.qc"
+    
+    try:
+        # check if the optimization tool is available
+        open(qcfile, "w").write(circuit.to_qc())
+        subprocess.run(["quantum_circuit_optimization", "FastTMerge", "InternalHOpt", "FastTODD", qcfile])
+        _circuit = qcs.QuantumCircuit.from_file(qcfileout)
+        os.remove(qcfile)
+        os.remove(qcfileout)
+        
+    except:
+        print("FastTODD optimization failed, using original circuit.")
+        _circuit = circuit
+        
+    return _circuit
+    
+    
 if __name__ == "__main__":
     # circuit, inputs = gfmult2_impl1()
     # open("gfmult2_impl1.qc", "w").write(circuit.to_qc(inputs=inputs))
@@ -99,14 +121,10 @@ if __name__ == "__main__":
     # circuit, inputs = gfmult2_impl4()
     # open("gfmult2_impl4.qc", "w").write(circuit.to_qc(inputs=inputs))
     
-    # circuit, inputs = gfmult2_impl5()
-    # open("gfmult2_impl5.qc", "w").write(circuit.to_qc(inputs=inputs))
+    circuit, inputs = gfmult2_impl5()
+    open("gfmult2_impl5.qc", "w").write(circuit.to_qc(inputs=inputs))
     
-    # circuit = qcs.QuantumCircuit.from_file("sota.qc")
-    # qcs.plot_circuit(circuit, "gfmult2_sota.png")
-    
-    circuit = qcs.QuantumCircuit.from_file("./data/input/qc/gf_mult2/ours.qc")
-    qcs.plot_circuit(circuit, "gfmult2_ours.png")
+    circuit = fast_todd_optimize(circuit)
     circuit = circuit.optimize_cnot_regions()
     qcs.plot_circuit(circuit, "gfmult2_ours_opt.png")
     

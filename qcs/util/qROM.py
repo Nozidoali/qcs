@@ -6,11 +6,10 @@ from qcs.patternRewriting import pattern_rewrite, apply_rule_based_rewriting
 
 if __name__ == "__main__":
     test_tt = [
-        "00011011",  # AND
-        "01101001",  # XOR
+        "1111",  # Const
     ]
     
-    test_circuit = QuantumCircuit.from_truth_table(test_tt, n=3, m=2)
+    test_circuit = QuantumCircuit.from_truth_table(test_tt, n=2, m=1)
     plot_circuit(test_circuit, "qrom_test_circuit.png")
 
     from rich.pretty import pprint
