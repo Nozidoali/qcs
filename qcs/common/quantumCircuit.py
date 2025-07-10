@@ -205,58 +205,107 @@ class QuantumCircuit:
             _circuit.extend(optimized_gates)
 
         return _circuit
+    
+    def copy(self) -> 'QuantumCircuit':
+        new_circuit = QuantumCircuit()
+        new_circuit.n_qubits = self.n_qubits
+        new_circuit.gates = [{**gate} for gate in self.gates]
+        return new_circuit
+    
+    def map_qubit(self, q1: int, q2: int):
+        """
+        Maps a qubit from q1 to q2 in the circuit.
+        This is useful for reordering qubits or applying transformations.
+        """
+        assert 0 <= q1 < self.n_qubits and 0 <= q2 < self.n_qubits, "Qubit indices out of range"
+        for gate in self.gates:
+            if "ctrl" in gate and gate["ctrl"] == q1:
+                gate["ctrl"] = q2
+            if "target" in gate and gate["target"] == q1:
+                gate["target"] = q2
+            if "ctrl1" in gate and gate["ctrl1"] == q1:
+                gate["ctrl1"] = q2
+            if "ctrl2" in gate and gate["ctrl2"] == q1:
+                gate["ctrl2"] = q2
+                
+    def swap_qubits(self, q1: int, q2: int):
+        """
+        Swap all occurrences of q1 and q2 in the circuit.
+        If a gate refers to q1, it will now refer to q2 and vice versa.
+        """
+        assert 0 <= q1 < self.n_qubits and 0 <= q2 < self.n_qubits, "Qubit indices out of range"
+        for gate in self.gates:
+            if "ctrl" in gate:
+                if gate["ctrl"] == q1:
+                    gate["ctrl"] = q2
+                elif gate["ctrl"] == q2:
+                    gate["ctrl"] = q1
+            if "target" in gate:
+                if gate["target"] == q1:
+                    gate["target"] = q2
+                elif gate["target"] == q2:
+                    gate["target"] = q1
+            if "ctrl1" in gate:
+                if gate["ctrl1"] == q1:
+                    gate["ctrl1"] = q2
+                elif gate["ctrl1"] == q2:
+                    gate["ctrl1"] = q1
+            if "ctrl2" in gate:
+                if gate["ctrl2"] == q1:
+                    gate["ctrl2"] = q2
+                elif gate["ctrl2"] == q2:
+                    gate["ctrl2"] = q1    
+    def gadgetize_toffoli(self) -> 'QuantumCircuit':
+        clean_qubits = {i: True for i in range(self.n_qubits)}
+        
+        n = len(self.gates)
 
+        _circuit = QuantumCircuit()
+        _circuit.n_qubits = self.n_qubits
+        
+        for i in range(n):
+            g = self.gates[i]
+            target = g["target"]
+            
+            if g["name"] == "Tof":
+                c1, c2 = g["ctrl1"], g["ctrl2"]
+                if clean_qubits[target]:
+                    _circuit.add_clean_toffoli(c1, c2, target)
+                else:
+                    _circuit.add_toffoli(c1, c2, target)            
+            else:
+                _circuit.add_gate(g)
+                target = g["target"]
+                clean_qubits[target] = False
+        return _circuit
+    
     def optimize_cnot_regions(self) -> list[dict]:
-        """
-        Returns
-        -------
-        list[dict]
-            A copy of the circuit’s gate list with trivial CNOT pairs removed.
-            * Only contiguous runs of CNOTs that **share the same target**
-              are analysed.
-            * Within such a run, any control that appears an even number of
-              times cancels out (since CNOT² = I).
-            * Phase gates (S, T, Tdg, Z) break a CNOT run but are otherwise
-              passed through unchanged.
-        """
-        gates = self.gates            # shorthand
-        out: list[dict] = []
+        gates = self.gates
+        out = []
         i = 0
         n = len(gates)
 
         while i < n:
             g = gates[i]
-
-            # ── Start of a run of CNOTs on the same target ──────────────
             if g["name"] == "CNOT":
                 tgt = g["target"]
-                parity: dict[int, int] = {}
-                order: list[int] = []
-
+                parity = {}
+                order = []
                 j = i
-                # collect consecutive CNOTs with identical target
-                while (
-                    j < n and gates[j]["name"] == "CNOT"
-                    and gates[j]["target"] == tgt
-                ):
+                while j < n and gates[j]["name"] == "CNOT" and gates[j]["target"] == tgt:
                     ctrl = gates[j]["ctrl"]
-                    parity[ctrl] = parity.get(ctrl, 0) ^ 1   # toggle even/odd
-                    if ctrl not in order:                    # record first-seen
+                    parity[ctrl] = parity.get(ctrl, 0) ^ 1
+                    if ctrl not in order:
                         order.append(ctrl)
                     j += 1
-
-                # emit one CNOT per control with odd parity
                 for ctrl in order:
                     if parity[ctrl]:
                         out.append({"name": "CNOT", "ctrl": ctrl, "target": tgt})
+                i = j
+            else:
+                out.append(g)
+                i += 1
 
-                i = j           # skip the whole run
-                continue
-
-            # ── Any non-CNOT gate (or CNOT with different target) ───────
-            out.append(g)
-            i += 1
-            
         _circuit = QuantumCircuit()
         _circuit.n_qubits = self.n_qubits
         _circuit.gates = out
@@ -431,6 +480,8 @@ class QuantumCircuit:
                 qc_str += f"S {qubits[gate['target']]}\n"
             elif name == "T":
                 qc_str += f"T {qubits[gate['target']]}\n"
+            elif name == "Z":
+                qc_str += f"Z {qubits[gate['target']]}\n"
             elif name == "Tdg":
                 qc_str += f"T {qubits[gate['target']]}\n"
                 qc_str += f"S {qubits[gate['target']]}\n"
