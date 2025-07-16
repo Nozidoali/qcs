@@ -1,0 +1,66 @@
+{
+    "2": {
+        "num_qubits_baseline": 6,
+        "num_2q_baseline": 77,
+        "num_t_baseline": 17,
+        "num_qubits_ours": 6,
+        "num_2q_ours": 46,
+        "num_t_ours": 12
+    },
+    "3": {
+        "num_qubits_baseline": 9,
+        "num_2q_baseline": 178,
+        "num_t_baseline": 31,
+        "num_qubits_ours": 9,
+        "num_2q_ours": 159,
+        "num_t_ours": 28
+    },
+    "4": {
+        "num_qubits_baseline": 12,
+        "num_2q_baseline": 485,
+        "num_t_baseline": 49,
+        "num_qubits_ours": 13,
+        "num_2q_ours": 314,
+        "num_t_ours": 48
+    },
+    "5": {
+        "num_qubits_baseline": 15,
+        "num_2q_baseline": 998,
+        "num_t_baseline": 81,
+        "num_qubits_ours": 16,
+        "num_2q_ours": 691,
+        "num_t_ours": 75
+    },
+    "6": {
+        "num_qubits_baseline": 18,
+        "num_2q_baseline": 1281,
+        "num_t_baseline": 113,
+        "num_qubits_ours": 19,
+        "num_2q_ours": 778,
+        "num_t_ours": 106
+    },
+    "7": {
+        "num_qubits_baseline": 21,
+        "num_2q_baseline": 1296,
+        "num_t_baseline": 155,
+        "num_qubits_ours": 23,
+        "num_2q_ours": 1410,
+        "num_t_ours": 152
+    },
+    "8": {
+        "num_qubits_baseline": 24,
+        "num_2q_baseline": 3241,
+        "num_t_baseline": 205,
+        "num_qubits_ours": 25,
+        "num_2q_ours": 1600,
+        "num_t_ours": 198
+    },
+    "9": {
+        "num_qubits_baseline": 27,
+        "num_2q_baseline": 3582,
+        "num_t_baseline": 257,
+        "num_qubits_ours": 30,
+        "num_2q_ours": 1705,
+        "num_t_ours": 258
+    }
+}
