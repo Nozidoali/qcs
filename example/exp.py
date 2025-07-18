@@ -20,9 +20,6 @@ if __name__ == "__main__":
     
     datas = []
     for n in range(2, 10):
-        
-        # print("\n\n\n")
-        # print(f"Processing gf_mult{n} circuit...")
 
         circuit: QuantumCircuit = qcs.QuantumCircuit.from_file(f"./data/input/qc/gf_mult{n}.qc")
         
