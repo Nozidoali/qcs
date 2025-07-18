@@ -1,6 +1,6 @@
 {
     "name": "gf_mult7",
-    "n_ands": 49,
+    "num_ands": 49,
     "n_t": 124,
     "n_qubits": 15
 }

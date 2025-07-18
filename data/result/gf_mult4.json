@@ -1,6 +1,6 @@
 {
     "name": "gf_mult4",
-    "n_ands": 16,
+    "num_ands": 16,
     "n_t": 32,
     "n_qubits": 9
 }

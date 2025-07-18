@@ -21,47 +21,15 @@ Approximate logic synthesis
 """
 
 from rich.pretty import pprint
-
 from .common import LogicNetwork, LogicGate, QuantumCircuit
-from .visualization import plot_circuit, plot_network
 
-def post_process(circuit: QuantumCircuit, **kwargs) -> QuantumCircuit:
-    run_zx: bool = kwargs.get("run_zx", False)
-    verbose: bool = kwargs.get("verbose", False)
-
-    qasm_str: str = circuit.to_qasm(run_zx = run_zx)
-    if verbose: pprint(qasm_str.splitlines())
-    circuit_opt = QuantumCircuit.from_qasm(qasm_str)
-    
-    circuit_new = QuantumCircuit()
-    circuit_new.request_qubits(circuit_opt.n_qubits)
-    is_had: dict[int, bool] = {i: False for i in range(circuit_opt.n_qubits)}
-    for i, gate in enumerate(circuit_opt.gates):
-        if gate["name"] == "HAD":
-            is_had[gate["target"]] = not is_had[gate["target"]]
-        else:
-            for j in QuantumCircuit.deps_of(gate):
-                if is_had[j]:
-                    circuit_new.add_gate({"name": "HAD", "target": j})
-                    is_had[j] = False
-            circuit_new.add_gate(gate)
-    for j in range(circuit_opt.n_qubits):
-        if is_had[j]:
-            circuit_new.add_gate({"name": "HAD", "target": j})
-            is_had[j] = False
-    return circuit_new
-
-def xor_block_grouping(network: LogicNetwork, **kwargs) -> QuantumCircuit:
-    plot_network_v: bool = kwargs.get("plot_network", False)
-    plot_circuit_v: bool = kwargs.get("plot_circuit", False)
-    verbose: bool = kwargs.get("verbose", False)
-
+def xor_block_grouping(network: LogicNetwork, verbose: bool = False) -> QuantumCircuit:
     _is_valid = lambda x: network.num_fanouts(x) == 1 or network.is_pi(x)
-
     qubit_of: dict[str, int] = {pi: i for i, pi in enumerate(network.inputs)}
     n_qubits: int = len(qubit_of)
         
     for node, gate in network.gates.items():
+        print(f"Processing node {node}: {gate}")
         if gate.is_and:
             qubit_of[node] = n_qubits
             n_qubits += 1
@@ -103,9 +71,6 @@ def xor_block_grouping(network: LogicNetwork, **kwargs) -> QuantumCircuit:
             if c1 is c2: continue
             circuit.add_cnot(c1, c2, p1^p2)
         qubit_is_clean[qubit] = False
-    circuit = post_process(circuit, **kwargs)
-    if plot_network_v: plot_network(network, show_name=verbose)
-    if plot_circuit_v: plot_circuit(circuit)
     return circuit
 
 def _uniquify_cuts(cuts: list[list[str]]) -> list[list[str]]:
@@ -152,21 +117,8 @@ def extract_subnetwork(network: LogicNetwork, root: str, cut: list[str]) -> Logi
     return sub_network
 
 def eval_network(network: LogicNetwork) -> dict[str, int]:
-    circuit = xor_block_grouping(network, verbose=False, run_zx=True)
-    return {"n_q": circuit.n_qubits, "n_t": circuit.num_t, "n_ands": network.n_ands}
-
-def _collect_nodes_in_topological_order(network: LogicNetwork, root: str, cut: list[str]) -> list[str]:
-    visited: set[str] = set()
-    order: list[str] = []
-    def _post_order_rec(node: str) -> None:
-        if node in visited: return
-        if node in cut: return
-        for f in network.fanins(node):
-            _post_order_rec(f)
-        visited.add(node)
-        order.append(node)
-    _post_order_rec(root)
-    return order[:]
+    circuit = xor_block_grouping(network, verbose=False)
+    return {"n_q": circuit.n_qubits, "n_t": circuit.num_t, "num_ands": network.num_ands}
 
 def _retrieve_nework_rec(network: LogicNetwork, circuit: QuantumCircuit, node_to_cut: dict[str, list], node_to_qubit: dict[str, int], node: str) -> None:
     if node in node_to_qubit: return node_to_qubit[node]
@@ -175,7 +127,7 @@ def _retrieve_nework_rec(network: LogicNetwork, circuit: QuantumCircuit, node_to
     root_index: int = circuit.request_qubit()
     for i, f in enumerate(cut):
         _retrieve_nework_rec(network, circuit, node_to_cut, node_to_qubit, f)
-    gates_to_add: list[LogicGate] = [network.gates[x] for x in _collect_nodes_in_topological_order(network, node, cut)]
+    gates_to_add: list[LogicGate] = [network.gates[x] for x in network.collect_nodes_in_topological_order(node, cut)]
     gate: LogicGate
     for i, gate in enumerate(gates_to_add):
         if gate.is_buf: continue
@@ -239,12 +191,8 @@ def area_oriented_mapping(network: LogicNetwork, node_to_cuts: dict[str, list]) 
         node_to_cost[root] = {"cut": best_cut, "t_cost": best_t_cost, "n_cost": best_n_cost, "qubits": best_qubits}
     return {node: node_to_cost[node]["cut"] for node in node_to_cost}
 
-def extract_q_opt(network: LogicNetwork, run_zx=True) -> QuantumCircuit:
+def extract(network: LogicNetwork) -> QuantumCircuit:
     node_to_cuts: dict[str, list] = enumerate_cuts(network)
     node_to_cut:  dict[str, list] = area_oriented_mapping(network, node_to_cuts)
     circuit: QuantumCircuit = retrieve_network(network, node_to_cut)
-    return post_process(circuit, run_zx=run_zx)
-
-def extract(network: LogicNetwork, **kwargs) -> QuantumCircuit:
-    run_zx: bool = kwargs.get("run_zx", False)
-    return extract_q_opt(network, run_zx=run_zx)
+    return circuit

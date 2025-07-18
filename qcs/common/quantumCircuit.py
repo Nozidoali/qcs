@@ -79,6 +79,10 @@ class QuantumCircuit:
         self.n_qubits: int = 0
         self.gates: list = []
         
+    @property
+    def n_gates(self) -> int:
+        return len(self.gates)
+        
     def extend(self, gates: list[dict]) -> None:
         for gate in gates:
             self.add_gate(gate)
@@ -401,9 +405,7 @@ class QuantumCircuit:
     def to_json(self) -> dict:
         return self.gates
 
-    def to_qasm(self, **kwargs) -> str:
-        run_zx: bool = kwargs.get("run_zx", False)
-        
+    def to_qasm(self) -> str:
         qasm_str: str = "OPENQASM 2.0;\n"
         qasm_str += f'include "qelib1.inc";\n'
         qasm_str += f"qreg q[{self.n_qubits}];\n"
@@ -428,19 +430,9 @@ class QuantumCircuit:
                 qasm_str += f"tdg q[{gate['target']}];\n"
             else:
                 raise NotImplementedError(f"Unsupported gate: {gate['name']}")
-        
-        if run_zx:
-            import pyzx as zx
-            circuit = zx.Circuit.from_qasm(qasm_str)
-            graph = circuit.to_graph()
-            zx.simplify.full_reduce(graph, quiet=True)
-            circuit = zx.extract_circuit(graph, up_to_perm=False)
-            circuit = circuit.to_basic_gates()
-            circuit = circuit.split_phase_gates()
-            return circuit.to_qasm()
         return qasm_str
     
-    def run_zx(self, **kwargs) -> 'QuantumCircuit':
+    def run_zx(self) -> 'QuantumCircuit':
         import pyzx as zx
         circuit = zx.Circuit.from_qasm(self.to_qasm())
         graph = circuit.to_graph()

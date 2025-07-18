@@ -97,15 +97,15 @@ class LogicNetwork:
         return verilog_str
     
     @property
-    def n_ands(self) -> int:
+    def num_ands(self) -> int:
         return sum(gate.is_and for gate in self.gates.values())
     
     @property
-    def n_pos(self) -> int:
+    def num_pos(self) -> int:
         return len(self.outputs)
     
     @property
-    def n_pis(self) -> int:
+    def num_pis(self) -> int:
         return len(self.inputs)
     
     def get_gate(self, node: str) -> LogicGate:
@@ -164,12 +164,12 @@ class LogicNetwork:
         self.gates[_gate.output] = _gate
         
     def simulate(self) -> int:
-        if self.n_pis >= 5:
+        if self.num_pis >= 5:
             raise NotImplementedError("Simulation for more than 5 inputs is not implemented")
-        mask: int = (1<<(1<<self.n_pis)) - 1
+        mask: int = (1<<(1<<self.num_pis)) - 1
         for i, _i in enumerate(self.inputs):
             self._node_patterns[_i] = 0
-            for x in range(1 << self.n_pis):
+            for x in range(1 << self.num_pis):
                 if ((x >> i) & 1) == 1: self._node_patterns[_i] |= (1 << x)
             self._node_patterns[_i] &= mask
         for _n, gate in self.gates.items():
@@ -193,6 +193,32 @@ class LogicNetwork:
         if node not in self._node_patterns:
             raise ValueError(f"Node {node} not found in the network")
         return self._node_patterns[node]
+
+    def collect_nodes_in_topological_order(self, root: str, cut: list[str]) -> list[str]:
+        visited: set[str] = set()
+        order: list[str] = []
+        def _post_order_rec(node: str) -> None:
+            if node in visited: return
+            if node in cut: return
+            for f in self.fanins(node):
+                _post_order_rec(f)
+            visited.add(node)
+            order.append(node)
+        _post_order_rec(root)
+        return order[:]
+    
+    def topological_sort(self) -> list[str]:
+        visited: set[str] = set()
+        order: list[str] = []
+        def _post_order_rec(node: str) -> None:
+            if node in visited: return
+            visited.add(node)
+            for f in self.fanins(node):
+                _post_order_rec(f)
+            order.append(node)
+        for node in self.outputs:
+            _post_order_rec(node)
+        return order[::-1]
 
 def random_network(n: int, n_gates: int) -> LogicNetwork:
     network = LogicNetwork()

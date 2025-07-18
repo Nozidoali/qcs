@@ -1,6 +1,6 @@
 {
     "name": "gf_mult8",
-    "n_ands": 64,
+    "num_ands": 64,
     "n_t": 196,
     "n_qubits": 26
 }
