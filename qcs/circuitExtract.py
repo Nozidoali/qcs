@@ -1,25 +1,3 @@
-"""
-Circuit extraction from logic network
-=====================================
-
-Cut enumeration and T cost estimation
--------------------------------------
-
-We apply cut merging algorithm to collect all the cuts that are implementable 
-using only one ancilla qubit. This involves checking the reversibility of the 
-functionality (idea: maybe we could extend this to multiple outputs). For each 
-cut, we map the subnetwork to its ESOP form and then map AND terms to Toffoli. 
-We apply then the optimization script in the zx calculus to find the optimal T 
-count for the subcircuit (idea: we can also extend the phase polynomial 
-simplification algorithm to find the optimal T count). Note that we are not 
-considering the context of the subcircuit right now, meaning we are missing 
-some optimization opportunities. 
-
-Approximate logic synthesis
----------------------------
-
-"""
-
 from rich.pretty import pprint
 from .common import LogicNetwork, LogicGate, QuantumCircuit
 
@@ -73,21 +51,17 @@ def xor_block_grouping(network: LogicNetwork, verbose: bool = False) -> QuantumC
         qubit_is_clean[qubit] = False
     return circuit
 
-def _uniquify_cuts(cuts: list[list[str]]) -> list[list[str]]:
+def uniquify_cuts(cuts: list[list[str]]) -> list[list[str]]:
     _hash = lambda x: tuple(sorted(x))
     return list({ _hash(cut): cut for cut in cuts }.values())
 
-def _merge_cuts(cuts1: list[list[str]], cuts2: list[list[str]]) -> list[list[str]]:
+def merge_cuts(cuts1: list[list[str]], cuts2: list[list[str]]) -> list[list[str]]:
     return [list(set(x[:]) | set(y[:])) for x in cuts1 for y in cuts2]
 
-def _filter_cuts(cuts: list[list[str]], **kwargs) -> list[list[str]]:
-    _MAX_INT: int = 2**31 - 1
-    max_cut_size: int = kwargs.get("max_cut_size", _MAX_INT)
-    max_cut_count: int = kwargs.get("max_cut_count", _MAX_INT)
-    return [cut for cut in _uniquify_cuts(cuts) if len(cut) <= max_cut_size][:max_cut_count]
+def filter_cuts(cuts: list[list[str]], max_size: int = 6, max_count: int = 1000) -> list[list[str]]:
+    return [cut for cut in uniquify_cuts(cuts) if len(cut) <= max_size][:max_count]
 
-def enumerate_cuts(network: LogicNetwork, **kwargs) -> dict[str, list]:
-    use_unary_and: bool = kwargs.get("use_unary_and", False)
+def enumerate_cuts(network: LogicNetwork, use_unary_and: bool = False) -> dict[str, list]:
     node_to_cuts: dict[str, list[list[str]]] = {pi: [[pi]] for pi in network.inputs}
     for node, gate in network.gates.items():
         node_to_cuts[node] = [[node], gate.inputs[:]]
@@ -98,9 +72,9 @@ def enumerate_cuts(network: LogicNetwork, **kwargs) -> dict[str, list]:
             continue
         if n_inputs == 1: node_to_cuts[node].extend(node_to_cuts[gate.inputs[0]])
         elif n_inputs == 2: 
-            node_to_cuts[node].extend(_merge_cuts(node_to_cuts[gate.inputs[0]], node_to_cuts[gate.inputs[1]]))
+            node_to_cuts[node].extend(merge_cuts(node_to_cuts[gate.inputs[0]], node_to_cuts[gate.inputs[1]]))
         else: raise ValueError(f"Unsupported number of inputs: {n_inputs}")
-        node_to_cuts[node] = _filter_cuts(node_to_cuts[node], **kwargs)
+        node_to_cuts[node] = filter_cuts(node_to_cuts[node])
     return node_to_cuts
 
 def extract_subnetwork(network: LogicNetwork, root: str, cut: list[str]) -> LogicNetwork:

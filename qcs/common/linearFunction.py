@@ -99,17 +99,6 @@ def synthesize_parity_strings(term_to_phase: dict[str, int], n_qubits: int) -> l
 import numpy as np
 
 def reduce_to_diagonal(matrix: np.ndarray, allow_swap: bool = True, verbose: bool = False) -> list[dict]:
-    """
-    Heuristic to transform a binary matrix to diagonal using CNOTs and optional swaps.
-    
-    Parameters:
-        matrix (np.ndarray): A binary n by n matrix (assumed invertible).
-        allow_swap (bool): If True, allows reordering rows. If False, enforces diagonal order using swaps.
-        verbose (bool): If True, prints progress.
-
-    Returns:
-        List[dict]: List of {"name": "CNOT", "ctrl": i, "target": j} or swap (as 3 CNOTs).
-    """
     mat = matrix.copy()
     n = mat.shape[0]
     ops = []
@@ -186,7 +175,6 @@ def reduce_to_diagonal(matrix: np.ndarray, allow_swap: bool = True, verbose: boo
     return ops
 
 def reverse_cnot_sequence(gates: list[dict]) -> list[dict]:
-    """Reverse a sequence of gates (CNOTs or SWAPs)."""
     reversed_ops = []
     for g in reversed(gates):
         if g["name"] == "CNOT":
@@ -217,10 +205,7 @@ def fix_matrix_by_cnot(src: np.ndarray, target: np.ndarray, verbose: bool = True
         print("Target:")
         print(target)
 
-    # Step 1: Reduce src → I
     g_src = reduce_to_diagonal(src, allow_swap=False, verbose=verbose)
-
-    # Step 2: Reduce target → I, then invert to get I → target
     g_target = reduce_to_diagonal(target, allow_swap=False, verbose=verbose)
     g_target_inv = reverse_cnot_sequence(g_target)
 

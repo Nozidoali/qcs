@@ -1,4 +1,4 @@
-from qcs import LinearFunction, reduce_to_diagonal, is_diagonal_matrix, is_one_hot_matrix
+from qcs import LinearFunction, reduce_to_diagonal, is_one_hot_matrix
 import numpy as np
 import tqdm
 

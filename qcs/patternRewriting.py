@@ -4,21 +4,6 @@ def apply_rule_based_rewriting(
     circ: QuantumCircuit,
     rules: list[callable],
 ) -> tuple[QuantumCircuit, int]:
-    """
-    Apply pattern-based rewriting to a quantum circuit using a set of rules.
-
-    Parameters
-    ----------
-    circ : QuantumCircuit
-        The circuit to optimize.
-    rules : list of functions
-        Each rule takes (gates, index) and returns (skip, replacement_gates, did_apply).
-
-    Returns
-    -------
-    tuple[QuantumCircuit, int]
-        A new circuit and number of rules applied.
-    """
     g = circ.gates
     out: list[dict] = []
     i = 0

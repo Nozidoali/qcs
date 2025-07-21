@@ -1,5 +1,4 @@
 import copy
-
 from .bitVector import BitVector
 
 class PauliProduct:
