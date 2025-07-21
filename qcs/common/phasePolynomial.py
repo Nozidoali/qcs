@@ -5,7 +5,6 @@ class PhasePolynomial:
     def __init__(self, n_qubits):
         self.n_qubits = n_qubits
         self.table = []
-
     def clifford_correction(self, table, n_qubits):
         tab = RowMajorTableau(n_qubits)
         for i in range(n_qubits):
@@ -21,7 +20,6 @@ class PhasePolynomial:
             for _ in range(diff // 2):
                 tab.append_s(i)
         return tab
-
     def to_circ(self):
         qc = QuantumCircuit()
         qc.request_qubits(self.n_qubits)

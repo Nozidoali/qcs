@@ -1,7 +1,6 @@
 from .base import QuantumCircuit
 import pyzx as zx
 
-@staticmethod
 def from_zx_circuit(qc) -> 'QuantumCircuit':
     circuit = QuantumCircuit()
     circuit.request_qubits(qc.qubits)
@@ -37,12 +36,12 @@ def from_zx_circuit(qc) -> 'QuantumCircuit':
 @staticmethod
 def from_file(filename: str) -> 'QuantumCircuit':
     qc = zx.Circuit.load(filename)
-    return QuantumCircuit.from_zx_circuit(qc)
+    return from_zx_circuit(qc)
 
 @staticmethod
 def from_qasm(qasm: str) -> 'QuantumCircuit':
     qc = zx.Circuit.from_qasm(qasm)
-    return QuantumCircuit.from_zx_circuit(qc)
+    return from_zx_circuit(qc)
 
 @staticmethod
 def from_truth_table(truth_table: list[str], n: int, m: int, use_gray_code: bool = True) -> 'QuantumCircuit':

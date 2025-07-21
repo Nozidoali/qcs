@@ -9,6 +9,9 @@ QuantumCircuit.t_depth = t_depth
 QuantumCircuit.t_depth_of = t_depth_of
 QuantumCircuit.num_gates = num_gates
 
+from .gateset import *
+QuantumCircuit.add_clean_toffoli = add_clean_toffoli
+
 from .decomposition import *
 QuantumCircuit.add_mcx = add_mcx
 QuantumCircuit.to_basic_gates = to_basic_gates
@@ -21,9 +24,11 @@ QuantumCircuit.hadamard_gadgetization = hadamard_gadgetization
 
 from .phaseCNOTSynthesis import *
 QuantumCircuit.optimize_cnot_phase_regions = optimize_cnot_phase_regions
+QuantumCircuit.optimize_cnot_regions = optimize_cnot_regions
 
 from .cleanupDangling import *
 QuantumCircuit.cleanup_dangling_hadamard = cleanup_dangling_hadamard
+QuantumCircuit.cleanup = cleanup
 
 from .io import *
 QuantumCircuit.from_truth_table = from_truth_table

@@ -21,4 +21,4 @@ def fast_todd_optimize(circuit: QuantumCircuit) -> QuantumCircuit:
         _circuit = circuit
         
     return _circuit
-    
+

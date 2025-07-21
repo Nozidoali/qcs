@@ -46,18 +46,9 @@ def decompose_ccz_dirty_ancilla(c1: int, c2: int, target: int) -> list[dict]:
     gates.append({"name": "CNOT", "ctrl":   target, "target": c2})
     return gates
 
-
 def is_unique(lst: list) -> bool:
     return len(lst) == len(set(lst))
 
-def add_toffoli(self, c1: int, c2: int, target: int, p1: bool = False, p2: bool = False) -> None:
-    assert is_unique([c1, c2, target]), f"Control and target qubits must be unique, got {c1}, {c2}, {target}"
-    if p1: self.add_x(c1)
-    if p2: self.add_x(c2)   
-    self.gates.append({"name": "Tof", "ctrl1": c1, "ctrl2": c2, "target": target})
-    if p1: self.add_x(c1)
-    if p2: self.add_x(c2)
-    
 def add_clean_toffoli(self, c1: int, c2: int, target: int) -> None:
     self.add_h(target)
     for gate in decompose_ccz_clean_ancilla(c1, c2, target):

@@ -18,4 +18,3 @@ def to_basic_gates(self) -> QuantumCircuit:
         else:
             _circuit.add_gate(gate)
     return _circuit.cleanup_dangling_hadamard()
-    

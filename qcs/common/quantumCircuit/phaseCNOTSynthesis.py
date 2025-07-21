@@ -9,9 +9,7 @@ def optimize_cnot_phase_block(self, gates: list[dict]) -> 'QuantumCircuit':
 def optimize_cnot_phase_regions(self) -> 'QuantumCircuit':
     _circuit = QuantumCircuit()
     _circuit.request_qubits(self.n_qubits)
-
     buffer = []
-
     for gate in self.gates:
         if gate["name"] in {"CNOT", "S", "T", "Tdg", "Z"}:
             buffer.append(gate)
@@ -21,11 +19,9 @@ def optimize_cnot_phase_regions(self) -> 'QuantumCircuit':
                 _circuit.extend(optimized_gates)
                 buffer = []
             _circuit.add_gate(gate)
-
     if buffer:
         optimized_gates = optimize_cnot_phase_block(self, buffer)
         _circuit.extend(optimized_gates)
-
     return _circuit
 
 def optimize_cnot_regions(self) -> list[dict]:
