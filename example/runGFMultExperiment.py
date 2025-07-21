@@ -1,6 +1,6 @@
 import qcs
 from qcs.common import QuantumCircuit
-from qcs.fastTODD import fast_todd_optimize
+from qcs.common.quantumCircuit.fastTODD import fast_todd_optimize
 
 import pandas as pd
 import os, json
@@ -23,7 +23,7 @@ if __name__ == "__main__":
 
         circuit: QuantumCircuit = qcs.QuantumCircuit.from_file(f"./data/input/qc/gf_mult{n}.qc")
         
-        circuit_baseline = fast_todd_optimize(circuit)
+        circuit_baseline = circuit.fast_todd_optimize()
         data = {
             "n": n,
             "num_qubits_baseline": circuit.n_qubits,
@@ -33,7 +33,7 @@ if __name__ == "__main__":
         
         circuit: QuantumCircuit = qcs.QuantumCircuit.from_file(f"./data/input/qc/gf_mult{n}.qc")
         circuit_ours = qcs.iterative_gadgetization(circuit)
-        circuit_ours = fast_todd_optimize(circuit_ours)
+        circuit_ours = circuit_ours.fast_todd_optimize()
         circuit_ours = circuit_ours.optimize_cnot_regions()
         data.update({
             "num_qubits_ours": circuit_ours.n_qubits,

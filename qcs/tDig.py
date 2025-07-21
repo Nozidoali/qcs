@@ -1,5 +1,5 @@
 from qcs.common import QuantumCircuit
-from qcs.fastTODD import fast_todd_optimize
+from qcs.common.quantumCircuit.fastTODD import fast_todd_optimize
 from qcs.visualization import plot_circuit
 
 def iterative_gadgetization(circuit: QuantumCircuit) -> QuantumCircuit:

@@ -41,11 +41,11 @@
     },
     "7": {
         "num_qubits_baseline": 21,
-        "num_2q_baseline": 1296,
-        "num_t_baseline": 155,
-        "num_qubits_ours": 23,
-        "num_2q_ours": 1410,
-        "num_t_ours": 152
+        "num_2q_baseline": 6,
+        "num_t_baseline": 0,
+        "num_qubits_ours": 22,
+        "num_2q_ours": 12,
+        "num_t_ours": 4
     },
     "8": {
         "num_qubits_baseline": 24,

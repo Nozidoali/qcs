@@ -41,6 +41,9 @@ QuantumCircuit.to_json = to_json
 from .zxCalculus import *
 QuantumCircuit.run_zx = run_zx
 
+from .fastTODD import *
+QuantumCircuit.fast_todd_optimize = fast_todd_optimize
+
 from .transformations import *
 QuantumCircuit.map_qubit = map_qubit
 QuantumCircuit.swap_qubits = swap_qubits
