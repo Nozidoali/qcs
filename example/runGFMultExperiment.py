@@ -32,7 +32,7 @@ if __name__ == "__main__":
         }
         
         circuit: QuantumCircuit = qcs.QuantumCircuit.from_file(f"./data/input/qc/gf_mult{n}.qc")
-        circuit_ours = qcs.iterative_gadgetization(circuit)
+        circuit_ours = qcs.iterative_toffoli_gadgetization(circuit)
         circuit_ours = circuit_ours.fast_todd_optimize()
         circuit_ours = circuit_ours.optimize_cnot_regions()
         data.update({
